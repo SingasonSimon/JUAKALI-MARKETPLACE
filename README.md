@@ -178,10 +178,328 @@ JUAKALI MARKETPLACE/
 - **Firebase Project** (for authentication)
 - **Git** (for version control)
 
+## 🪟 Windows Setup Guide
+
+If you're setting this up on a Windows computer, follow these steps carefully. I'll walk you through everything you need to get the project running on your machine.
+
+### Before You Start
+
+You'll need to have these programs installed on your computer:
+- Python (version 3.10 or newer)
+- Node.js (includes npm automatically)
+- Git (optional, but helpful)
+
+### Installing Python on Windows
+
+1. **Download Python:**
+   - Open your web browser and go to: https://www.python.org/downloads/
+   - Click the big yellow "Download Python" button
+   - The website will automatically detect you're on Windows and give you the right version
+
+2. **Install Python:**
+   - Run the downloaded installer (it will be named something like `python-3.12.x.exe`)
+   - **Important:** On the first screen, check the box that says "Add Python to PATH" - this is crucial!
+   - Click "Install Now"
+   - Wait for the installation to finish
+
+3. **Verify Python is installed:**
+   - Press the Windows key and type "cmd" to open Command Prompt
+   - Type this and press Enter:
+     ```
+     python --version
+     ```
+   - You should see something like "Python 3.12.x" - if you see an error, Python might not be added to your PATH
+
+### Installing Node.js on Windows
+
+1. **Download Node.js:**
+   - Go to: https://nodejs.org/
+   - You'll see two buttons - click the green one that says "LTS" (Long Term Support)
+   - This downloads the installer
+
+2. **Install Node.js:**
+   - Run the installer you just downloaded
+   - Just click "Next" through all the screens - the default options are fine
+   - At the end, it will install everything automatically
+   - You might need to restart your computer after this
+
+3. **Verify Node.js is installed:**
+   - Open Command Prompt again (close and reopen it after installing)
+   - Type:
+     ```
+     node --version
+     ```
+   - You should see a version number like "v20.x.x"
+   - Also check npm:
+     ```
+     npm --version
+     ```
+   - You should see another version number
+
+### Installing Git on Windows (Optional)
+
+If you don't have Git installed:
+
+1. Go to: https://git-scm.com/download/win
+2. Download the installer and run it
+3. Click "Next" through all the screens - defaults are fine
+4. This lets you use `git clone` commands
+
+### Getting the Project Files
+
+You can either:
+- Download the project as a ZIP file and extract it, OR
+- Use Git to clone it (if you installed Git)
+
+**If using ZIP:**
+- Extract the folder to somewhere easy to find, like your Desktop or Documents folder
+- Remember where you put it!
+
+**If using Git:**
+- Open Command Prompt
+- Navigate to where you want the project:
+  ```
+  cd Desktop
+  ```
+- Clone the repository (you'll need the repository URL)
+
+### Setting Up the Backend
+
+1. **Open Command Prompt:**
+   - Press Windows key, type "cmd", press Enter
+
+2. **Navigate to the backend folder:**
+   - First, go to where your project is. For example:
+     ```
+     cd Desktop
+     cd "JUAKALI MARKETPLACE"
+     cd backend
+     ```
+   - Tip: If you're not sure where you are, type `cd` and then drag the folder from File Explorer into the Command Prompt window - it will paste the path automatically
+
+3. **Create a Virtual Environment:**
+   - This creates a special folder that keeps this project's Python packages separate from other projects
+   - Type:
+     ```
+     python -m venv django_venv
+     ```
+   - Wait for it to finish - you'll see your prompt come back
+
+4. **Activate the Virtual Environment:**
+   - Every time you work on the backend, you need to activate this first
+   - Type:
+     ```
+     django_venv\Scripts\activate
+     ```
+   - You should now see `(django_venv)` at the start of your command line - this means it's working!
+
+5. **Install the Required Packages:**
+   - Type:
+     ```
+     pip install -r requirements.txt
+     ```
+   - This downloads all the Python libraries the project needs
+   - It might take a few minutes - just wait until it's done
+   - Don't worry if you see some warnings in yellow - that's normal
+
+6. **Set Up the Database:**
+   - Type:
+     ```
+     python manage.py migrate
+     ```
+   - This creates all the database tables the app needs
+   - You should see a list of migrations being applied
+
+### Setting Up Firebase
+
+Firebase is what handles user login and registration. You need to set this up before the app will work.
+
+#### Creating a Firebase Project
+
+1. Go to: https://console.firebase.google.com/
+2. Sign in with your Google account
+3. Click "Add Project" or "Create a Project"
+4. Give it a name (like "Juakali Marketplace")
+5. Click through the setup screens - you can disable Google Analytics if you want
+6. Click "Create Project" and wait for it to finish
+
+#### Getting Your Firebase Configuration
+
+1. In Firebase Console, click the gear icon (⚙️) next to "Project Overview"
+2. Click "Project Settings"
+3. Scroll down to the "Your apps" section
+4. Click the web icon (looks like `</>`)
+5. Give your app a nickname (like "Juakali Web")
+6. Click "Register app"
+7. You'll see a code block with your configuration - **copy these values!** They look like:
+   ```
+   apiKey: "AIzaSy..."
+   authDomain: "your-project.firebaseapp.com"
+   projectId: "your-project-id"
+   storageBucket: "your-project.appspot.com"
+   messagingSenderId: "123456789"
+   appId: "1:123456789:web:abcdef"
+   ```
+
+#### Setting Up Backend Firebase
+
+1. Still in Firebase Console, go to "Project Settings" → "Service Accounts" tab
+2. Click "Generate New Private Key"
+3. Click "Generate Key" in the popup
+4. A JSON file will download - this is your service account key
+5. Rename this file to: `firebase-service-account.json`
+6. Move it to the `backend/core/` folder
+   - You can do this by opening File Explorer, going to your project, then `backend/core/`
+   - Just drag and drop the file there
+
+#### Setting Up Frontend Firebase
+
+1. Open File Explorer and navigate to your project's `frontend` folder
+2. In the `frontend` folder, create a new file called `.env`
+   - Right-click → New → Text Document
+   - Name it exactly `.env` (including the dot at the start)
+   - If Windows warns you about changing the extension, click "Yes"
+3. Open `.env` in Notepad
+4. Paste this, replacing the values with what you copied from Firebase:
+   ```
+   VITE_FIREBASE_API_KEY=paste_your_api_key_here
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+   VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+   ```
+5. Save the file (Ctrl+S)
+
+#### Enabling Email/Password Login
+
+1. In Firebase Console, click "Authentication" in the left menu
+2. Click "Get Started"
+3. Click "Email/Password" from the list
+4. Toggle the "Enable" switch to ON
+5. Click "Save"
+
+### Setting Up the Frontend
+
+1. **Open a New Command Prompt Window:**
+   - Keep your backend window open, but open a second Command Prompt for the frontend
+
+2. **Navigate to the Frontend Folder:**
+   ```
+   cd Desktop
+   cd "JUAKALI MARKETPLACE"
+   cd frontend
+   ```
+
+3. **Install Node Packages:**
+   ```
+   npm install
+   ```
+   - This downloads all the JavaScript libraries the project needs
+   - It might take a few minutes - you'll see lots of text scrolling
+   - Wait until you see your prompt again (no errors)
+
+### Running the Project
+
+You need to run both the backend and frontend at the same time, so you'll need two Command Prompt windows.
+
+#### Starting the Backend Server
+
+1. In your first Command Prompt window (the one in the `backend` folder)
+2. Make sure you see `(django_venv)` at the start - if not, activate it:
+   ```
+   django_venv\Scripts\activate
+   ```
+3. Start the server:
+   ```
+   python manage.py runserver
+   ```
+4. You should see:
+   ```
+   Starting development server at http://127.0.0.1:8000/
+   ```
+5. **Leave this window open!** The server needs to keep running
+
+#### Starting the Frontend Server
+
+1. In your second Command Prompt window (the one in the `frontend` folder)
+2. Start the development server:
+   ```
+   npm run dev
+   ```
+3. Wait a moment - you'll see:
+   ```
+   VITE v7.1.7  ready in 500 ms
+   ➜  Local:   http://localhost:5173/
+   ```
+4. **Leave this window open too!** The frontend server also needs to keep running
+
+#### Opening the Application
+
+1. Open your web browser (Chrome, Firefox, Edge, or any browser)
+2. Go to: `http://localhost:5173`
+3. You should see the Juakali Marketplace homepage!
+
+### Common Issues and Fixes
+
+**"python is not recognized" or "python: command not found"**
+- Python might not be installed correctly, or it's not in your PATH
+- Try using `py` instead of `python` (Windows Python Launcher)
+- Or reinstall Python and make absolutely sure to check "Add Python to PATH"
+
+**"npm is not recognized"**
+- Node.js might not be installed, or you need to restart your computer
+- Close and reopen Command Prompt
+- If that doesn't work, reinstall Node.js
+
+**"Port 8000 already in use" or "Port 5173 already in use"**
+- Another program is using that port number
+- For backend, you can use a different port:
+  ```
+  python manage.py runserver 8001
+  ```
+- For frontend, it will usually suggest an alternate port automatically
+
+**Virtual environment won't activate**
+- Make sure you're in the `backend` folder first
+- Try typing the full path:
+  ```
+  .\django_venv\Scripts\activate
+  ```
+- If you're using PowerShell, you might need to run this first:
+  ```
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+  Then try activating again
+
+**Can't find my `.env` file**
+- Make sure it's named exactly `.env` (with the dot)
+- Windows might hide files starting with dots - in File Explorer, go to View → Show → Hidden items
+- Make sure it's in the `frontend` folder, not `backend`
+
+**Firebase errors when trying to login**
+- Double-check your `.env` file has the correct values
+- Make sure there are no spaces around the `=` signs
+- Make sure the file is saved
+- Restart the frontend server after changing the `.env` file (close it with Ctrl+C and run `npm run dev` again)
+
+**"Module not found" errors**
+- You might not have installed all the packages
+- For backend: Make sure the virtual environment is activated, then run `pip install -r requirements.txt` again
+- For frontend: Run `npm install` again in the frontend folder
+
+**Can't find the project folder in Command Prompt**
+- Open File Explorer and navigate to your project folder
+- Click in the address bar at the top and copy the path
+- In Command Prompt, type `cd` followed by pasting the path:
+  ```
+  cd C:\Users\YourName\Desktop\JUAKALI MARKETPLACE
+  ```
+
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/SingasonSimon/JUAKALI-MARKETPLACE.git
 cd "JUAKALI MARKETPLACE"
 ```
 
