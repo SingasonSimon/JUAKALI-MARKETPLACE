@@ -6,6 +6,21 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'slug']
+        read_only_fields = ['slug']  # Slug is auto-generated from name
+    
+    def create(self, validated_data):
+        """Auto-generate slug from name if not provided."""
+        from django.utils.text import slugify
+        name = validated_data.get('name')
+        validated_data['slug'] = slugify(name)
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Auto-generate slug from name if name is updated."""
+        from django.utils.text import slugify
+        if 'name' in validated_data:
+            validated_data['slug'] = slugify(validated_data['name'])
+        return super().update(instance, validated_data)
 
 class ServiceSerializer(serializers.ModelSerializer):
     provider = serializers.HiddenField(default=serializers.CurrentUserDefault())

@@ -1,6 +1,8 @@
-from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveUpdateAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from users.serializers import CustomUserSerializer
+from .permissions import IsAdminUser
+from users.models import CustomUser
 
 class CurrentUserView(RetrieveUpdateAPIView):
     """
@@ -17,3 +19,11 @@ class CurrentUserView(RetrieveUpdateAPIView):
         Our FirebaseAuthentication class already attached the user to request.user.
         """
         return self.request.user
+    
+class AdminUserListView(ListAPIView):
+    """
+    GET: Returns a list of all users. (Admin only)
+    """
+    queryset = CustomUser.objects.all().order_by('email')
+    serializer_class = CustomUserSerializer
+    permission_classes = [IsAdminUser] # Protect this view

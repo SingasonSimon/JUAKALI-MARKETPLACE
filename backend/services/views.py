@@ -10,33 +10,76 @@ from .permissions import (
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     """
-    GET: Returns a list of all categories.
-    POST: Creates a new category (Admin-only in future, for now any auth user).
+    GET: Returns a list of all categories (public access).
+    POST: Creates a new category (Provider or Admin only).
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    
+    def get_permissions(self):
+        """
+        - GET requests are public (AllowAny)
+        - POST requests require provider or admin permission
+        """
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
+        return [permissions.AllowAny()]
+
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET: Returns a single category (public access).
+    PUT/PATCH: Updates a category (Provider or Admin only).
+    DELETE: Deletes a category (Provider or Admin only).
+    """
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    
+    def get_permissions(self):
+        """
+        - GET requests are public (AllowAny)
+        - PUT/PATCH/DELETE require provider or admin permission
+        """
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
+        return [permissions.AllowAny()]
 
 class ServiceListCreateView(generics.ListCreateAPIView):
     """
-    GET: Returns a list of all services.
+    GET: Returns a list of all services (public access).
     POST: Creates a new service for the logged-in PROVIDER.
     """
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsProviderOrReadOnly]
+    
+    def get_permissions(self):
+        """
+        - GET requests are public (AllowAny)
+        - POST requests require IsProviderOrReadOnly permission
+        """
+        if self.request.method == 'POST':
+            return [IsProviderOrReadOnly()]
+        return [permissions.AllowAny()]
 
     def perform_create(self, serializer):
         serializer.save()
 
 class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET: Returns a single service.
+    GET: Returns a single service (public access).
     PUT/PATCH: Updates a service (Owner only).
     DELETE: Deletes a service (Owner only).
     """
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    
+    def get_permissions(self):
+        """
+        - GET requests are public (AllowAny)
+        - PUT/PATCH/DELETE require IsOwnerOrReadOnly permission
+        """
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsOwnerOrReadOnly()]
+        return [permissions.AllowAny()]
     
 
 class BookingListCreateView(generics.ListCreateAPIView):
@@ -93,3 +136,19 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
         elif user.role == 'PROVIDER':
             return Booking.objects.filter(service__provider=user)
         return Booking.objects.none()
+    
+class ProviderServiceListView(generics.ListAPIView):
+    """
+    GET: Returns a list of services owned by the currently authenticated PROVIDER.
+    """
+    serializer_class = ServiceSerializer
+    permission_classes = [permissions.IsAuthenticated, IsProviderOrReadOnly]
+
+    def get_queryset(self):
+        """
+        Filter services to return only those owned by the current user.
+        """
+        user = self.request.user
+        if user.role == 'PROVIDER':
+            return Service.objects.filter(provider=user)
+        return Service.objects.none()
