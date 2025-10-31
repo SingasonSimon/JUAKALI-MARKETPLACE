@@ -37,12 +37,11 @@ export default function Navbar() {
         <motion.div
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
-          className="flex flex-col items-start"
+          className="flex items-center h-full"
         >
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/icon.png" alt="Juakali Marketplace" className="h-10 w-10 object-contain" />
+          <Link to="/" className="text-xl font-bold text-white hover:text-blue-300 transition-colors whitespace-nowrap">
+            JUAKALI MARKETPLACE
           </Link>
-          <span className="text-sm font-semibold text-white mt-1 hidden sm:block">JUAKALI MARKETPLACE</span>
         </motion.div>
 
         {/* Navigation Links */}

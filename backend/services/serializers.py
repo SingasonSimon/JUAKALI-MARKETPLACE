@@ -74,20 +74,26 @@ class BookingSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """
         Check that a Provider cannot book their own service.
+        Only validate on create, not on update.
         """
-        # On create, 'service' is in data. On update, it might not be.
-        service = data.get('service') or self.instance.service
-        seeker = data.get('seeker') or self.request.user
+        # Only validate on create (when instance is None)
+        if self.instance is None:
+            service = data.get('service')
+            # Get request from context (Django REST Framework way)
+            request = self.context.get('request')
+            seeker = data.get('seeker') or (request.user if request else None)
 
-        if service.provider == seeker:
-            raise serializers.ValidationError("You cannot book your own service.")
+            if service and seeker and service.provider == seeker:
+                raise serializers.ValidationError("You cannot book your own service.")
             
         return data
 
     def validate_seeker(self, value):
         """
         Check that the user creating the booking is a SEEKER.
+        Only validate on create, not on update.
         """
-        if value.role != 'SEEKER':
+        # Only validate on create (when instance is None)
+        if self.instance is None and value.role != 'SEEKER':
             raise serializers.ValidationError("Only users with the 'SEEKER' role can create bookings.")
         return value

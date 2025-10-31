@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChartBarIcon,
+  UserIcon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from './LoadingButton';
@@ -9,6 +15,14 @@ export default function DashboardLayout() {
   const { dbUser, logout } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
+
+  // Helper function to capitalize names
+  const capitalizeName = (name) => {
+    if (!name) return '';
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
+  const displayName = `${capitalizeName(dbUser?.first_name)} ${capitalizeName(dbUser?.last_name)}`.trim();
   const navigate = useNavigate();
   
   // Get initial sidebar state from localStorage or default to true
@@ -75,13 +89,13 @@ export default function DashboardLayout() {
 
   const role = dbUser?.role || 'SEEKER';
   const isProvider = role === 'PROVIDER';
-  const isAdmin = role === 'ADMIN';
+  // const isAdmin = role === 'ADMIN'; // ADMIN FUNCTIONALITY DISABLED
 
   // Navigation items based on role
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/dashboard/profile', label: 'Profile', icon: '👤' },
-    { path: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
+    { path: '/dashboard', label: 'Dashboard', Icon: ChartBarIcon },
+    { path: '/dashboard/profile', label: 'Profile', Icon: UserIcon },
+    { path: '/dashboard/settings', label: 'Settings', Icon: Cog6ToothIcon },
   ];
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -127,9 +141,11 @@ export default function DashboardLayout() {
             {/* Logo */}
             <div className={`${sidebarCollapsed ? 'p-3' : 'p-4'} border-b border-gray-700 bg-gradient-to-r from-blue-900/50 to-purple-900/50`}>
               <Link to="/" className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'} hover:opacity-80 transition-opacity`}>
-                <img src="/icon.png" alt="Juakali Marketplace" className={`${sidebarCollapsed ? 'h-8 w-8' : 'h-8 w-8'} object-contain flex-shrink-0`} />
                 {!sidebarCollapsed && (
                   <span className="text-xl font-bold text-white whitespace-nowrap">Juakali Marketplace</span>
+                )}
+                {sidebarCollapsed && (
+                  <span className="text-xl font-bold text-white">JM</span>
                 )}
               </Link>
             </div>
@@ -143,7 +159,7 @@ export default function DashboardLayout() {
                 {!sidebarCollapsed && (
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold truncate">
-                      {dbUser?.first_name} {dbUser?.last_name}
+                      {displayName || 'User'}
                     </p>
                     <p className="text-gray-300 text-sm truncate">{dbUser?.email}</p>
                   </div>
@@ -159,7 +175,7 @@ export default function DashboardLayout() {
             </div>
 
             {/* Navigation */}
-            <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
+            <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-4'} hide-scrollbar`}>
               <ul className="space-y-2">
                 {navItems.map((item) => (
                   <li key={item.path}>
@@ -172,7 +188,7 @@ export default function DashboardLayout() {
                       }`}
                       title={sidebarCollapsed ? item.label : ''}
                     >
-                      <span className="text-xl flex-shrink-0">{item.icon}</span>
+                      <item.Icon className="w-5 h-5 flex-shrink-0" />
                       {!sidebarCollapsed && (
                         <span className="font-medium whitespace-nowrap">{item.label}</span>
                       )}
@@ -202,7 +218,7 @@ export default function DashboardLayout() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   ) : (
-                    <span className="text-xl">🚪</span>
+                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
                   )}
                 </button>
               ) : (
@@ -210,9 +226,9 @@ export default function DashboardLayout() {
                   onClick={handleLogout}
                   loading={logoutLoading}
                   variant="danger"
-                  className="w-full py-2 px-4 text-sm"
+                  className="w-full py-2 px-4 text-sm flex items-center justify-center gap-2"
                 >
-                  <span className="mr-2">🚪</span>
+                  <ArrowRightOnRectangleIcon className="w-4 h-4" />
                   Logout
                 </LoadingButton>
               )}
@@ -237,7 +253,7 @@ export default function DashboardLayout() {
 
       {/* Main Content - Adjust margin based on sidebar state */}
       <div 
-        className="flex-1 flex flex-col min-w-0 transition-all duration-300"
+        className="flex-1 flex flex-col min-w-0 transition-all duration-300 h-screen overflow-hidden"
         style={{
           marginLeft: isDesktop 
             ? (sidebarCollapsed ? '80px' : '256px') 
@@ -245,7 +261,7 @@ export default function DashboardLayout() {
         }}
       >
         {/* Top Bar - Sticky header */}
-        <header className="bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-md">
+        <header className="bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-md flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Mobile menu button */}
             <button
@@ -289,7 +305,7 @@ export default function DashboardLayout() {
                 {dbUser?.first_name?.[0]?.toUpperCase() || 'U'}
               </div>
               <span className="text-white font-medium hidden sm:block truncate max-w-[120px]">
-                {dbUser?.first_name} {dbUser?.last_name}
+                {displayName || 'User'}
               </span>
               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -305,7 +321,7 @@ export default function DashboardLayout() {
                   className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 z-50"
                 >
                   <div className="px-4 py-3 border-b border-gray-700">
-                    <p className="text-white font-semibold">{dbUser?.first_name} {dbUser?.last_name}</p>
+                    <p className="text-white font-semibold">{displayName || 'User'}</p>
                     <p className="text-gray-300 text-sm">{dbUser?.email}</p>
                   </div>
                   <Link
@@ -313,21 +329,26 @@ export default function DashboardLayout() {
                     className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                     onClick={() => setShowProfileMenu(false)}
                   >
-                    👤 View Profile
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="w-4 h-4" />
+                      View Profile
+                    </div>
                   </Link>
                   <Link
                     to="/dashboard/settings"
-                    className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"
                     onClick={() => setShowProfileMenu(false)}
                   >
-                    ⚙️ Settings
+                    <Cog6ToothIcon className="w-4 h-4" />
+                    Settings
                   </Link>
                   <div className="border-t border-gray-700 mt-2 pt-2">
                     <button
                       onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-red-400 hover:bg-gray-700 transition-colors"
+                      className="w-full text-left px-4 py-2 text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
                     >
-                      🚪 Logout
+                      <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                      Logout
                     </button>
                   </div>
                 </motion.div>
@@ -337,7 +358,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6 hide-scrollbar">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>

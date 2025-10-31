@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import SeekerDashboard from './SeekerDashboard';
 import ProviderDashboard from './ProviderDashboard';
-import AdminDashboard from './AdminDashboard';
+// import AdminDashboard from './AdminDashboard'; // ADMIN FUNCTIONALITY DISABLED
 
 export default function DashboardRedirect() {
   const { dbUser } = useAuth();
@@ -19,8 +19,8 @@ export default function DashboardRedirect() {
       return <SeekerDashboard />;
     case 'PROVIDER':
       return <ProviderDashboard />;
-    case 'ADMIN':
-      return <AdminDashboard />;
+    // case 'ADMIN': // ADMIN FUNCTIONALITY DISABLED
+    //   return <AdminDashboard />;
     default:
       // If role is unknown, log them out or send to login
       console.error("Unknown user role:", dbUser.role);

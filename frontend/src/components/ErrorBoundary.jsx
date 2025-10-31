@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import LoadingButton from './LoadingButton';
 
 class ErrorBoundary extends React.Component {
@@ -20,7 +21,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
           <div className="max-w-md w-full bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-            <div className="text-6xl mb-4">⚠️</div>
+            <ExclamationTriangleIcon className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
             <h2 className="text-2xl font-bold text-white mb-4">Something went wrong</h2>
             <p className="text-gray-300 mb-6">
               We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.

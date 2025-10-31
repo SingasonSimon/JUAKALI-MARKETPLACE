@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { 
+  HandRaisedIcon, 
+  WrenchScrewdriverIcon, 
+  CalendarIcon, 
+  ClipboardDocumentListIcon,
+  Cog6ToothIcon,
+  FolderIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  CheckBadgeIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
 import { bookingService } from '../services/bookingService';
@@ -181,9 +194,10 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
           <h3 className="text-2xl font-bold text-white">Edit Service</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
+            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close"
           >
-            ×
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
@@ -598,7 +612,7 @@ export default function ProviderDashboard() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6 w-full"
+      className="space-y-6 w-full h-full overflow-hidden"
     >
       {/* Welcome Section */}
       <motion.div
@@ -609,14 +623,18 @@ export default function ProviderDashboard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Welcome back, {dbUser?.first_name || 'Provider'}! 👋
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              Welcome back, {(() => {
+                const name = dbUser?.first_name || dbUser?.email?.split('@')[0] || 'Provider';
+                return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+              })()}!
+              <HandRaisedIcon className="w-8 h-8 text-blue-300" />
             </h1>
             <p className="text-blue-200 text-lg">Manage your services and track your bookings</p>
           </div>
           <div className="hidden md:block">
-            <div className="w-20 h-20 rounded-full bg-white bg-opacity-10 flex items-center justify-center text-4xl">
-              🛠️
+            <div className="w-20 h-20 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
+              <WrenchScrewdriverIcon className="w-10 h-10 text-white" />
             </div>
           </div>
         </div>
@@ -630,70 +648,75 @@ export default function ProviderDashboard() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {[
-          { label: 'Total Services', value: stats.totalServices, icon: '🔧', color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
-          { label: 'Total Bookings', value: stats.totalBookings, icon: '📅', color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
-          { label: 'Pending', value: stats.pendingBookings, icon: '⏳', color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
-          { label: 'Confirmed', value: stats.confirmedBookings, icon: '✅', color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-3xl">{stat.icon}</span>
-              <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
-            </div>
-            <p className="text-gray-300 font-medium">{stat.label}</p>
-          </motion.div>
-        ))}
+          { label: 'Total Services', value: stats.totalServices, Icon: WrenchScrewdriverIcon, color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
+          { label: 'Total Bookings', value: stats.totalBookings, Icon: CalendarIcon, color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
+          { label: 'Pending', value: stats.pendingBookings, Icon: ClockIcon, color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
+          { label: 'Confirmed', value: stats.confirmedBookings, Icon: CheckCircleIcon, color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
+        ].map((stat, index) => {
+          const IconComponent = stat.Icon;
+          return (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              whileHover={{ scale: 1.02 }}
+              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <IconComponent className={`w-8 h-8 ${stat.color}`} />
+                <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
+              </div>
+              <p className="text-gray-300 font-medium">{stat.label}</p>
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       {/* Tabs for Services and Categories */}
-      <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
-        <div className="border-b border-gray-700">
-          <nav className="flex -mb-px">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl flex flex-col h-full">
+        <div className="border-b border-gray-700 flex-shrink-0">
+          <nav className="flex -mb-px space-x-1">
             {[
-              { id: 'services', label: 'Services', icon: '⚙️' },
-              { id: 'categories', label: 'Categories', icon: '📁' }
+              { id: 'services', label: 'Services', Icon: Cog6ToothIcon },
+              { id: 'categories', label: 'Categories', Icon: FolderIcon }
             ].map((section) => (
               <button
                 key={section.id}
                 onClick={() => {
+                  console.log('Switching to section:', section.id);
                   setActiveSection(section.id);
                   setShowCategoryForm(false);
                   setEditingCategory(null);
                 }}
-                className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 ${
+                className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
                   activeSection === section.id
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-gray-400 hover:text-gray-300'
+                    ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-800'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
+                style={{ minWidth: '120px' }}
               >
-                <span>{section.icon}</span>
-                <span>{section.label}</span>
+                <section.Icon className="w-5 h-5" />
+                <span className="font-semibold">{section.label}</span>
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
           {/* Services Section */}
           {activeSection === 'services' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full"
             >
               {/* Left Column: Create Service */}
-              <motion.div variants={itemVariants} className="lg:col-span-1">
-                <div className="bg-gray-800 p-6 shadow-md border border-gray-700 rounded-lg">
+              <motion.div variants={itemVariants} className="lg:col-span-1 flex flex-col">
+                <div className="bg-gray-800 p-6 shadow-md border border-gray-700 rounded-lg h-full flex flex-col">
                   {!showCreateModal ? (
                     <div>
                       <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                        <span>⚙️</span>
+                        <Cog6ToothIcon className="w-6 h-6" />
                         Your Services
                       </h2>
                       <LoadingButton
@@ -714,16 +737,16 @@ export default function ProviderDashboard() {
               </motion.div>
 
         {/* Middle Column: My Services List */}
-        <motion.div variants={itemVariants} className="lg:col-span-1">
-          <div className="bg-gray-800 p-6 border border-gray-700 shadow-lg rounded-lg">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <span className="text-2xl">📋</span>
+        <motion.div variants={itemVariants} className="lg:col-span-1 flex flex-col">
+          <div className="bg-gray-800 p-6 border border-gray-700 shadow-lg rounded-lg h-full flex flex-col">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2 flex-shrink-0">
+              <ClipboardDocumentListIcon className="w-6 h-6" />
               <span>My Services</span>
               <span className="ml-auto px-2 py-1 bg-blue-600 rounded-full text-xs font-semibold">
                 {myServices.length}
               </span>
             </h2>
-            <div className="space-y-4 max-h-[600px] overflow-y-auto">
+            <div className="space-y-4 flex-1 overflow-y-auto hide-scrollbar">
               {myServices.length > 0 ? (
                 myServices.map((service, index) => (
                   <motion.div
@@ -745,7 +768,7 @@ export default function ProviderDashboard() {
                   animate={{ opacity: 1 }}
                   className="p-12 bg-gray-700 text-center border-2 border-dashed border-gray-600 rounded-lg"
                 >
-                  <div className="text-6xl mb-4">🔧</div>
+                  <WrenchScrewdriverIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
                   <p className="text-gray-300 mb-2 font-semibold text-lg">No services yet</p>
                   <p className="text-gray-300 text-sm">Click "Create New Service" to get started!</p>
                 </motion.div>
@@ -755,16 +778,16 @@ export default function ProviderDashboard() {
         </motion.div>
 
               {/* Right Column: Bookings */}
-              <motion.div variants={itemVariants} className="lg:col-span-1">
-                <div className="bg-gray-800 p-6 border border-gray-700 shadow-lg rounded-lg">
-                  <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <span className="text-2xl">📅</span>
+              <motion.div variants={itemVariants} className="lg:col-span-1 flex flex-col">
+                <div className="bg-gray-800 p-6 border border-gray-700 shadow-lg rounded-lg h-full flex flex-col">
+                  <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2 flex-shrink-0">
+                    <CalendarIcon className="w-6 h-6" />
                     <span>Bookings</span>
                     <span className="ml-auto px-2 py-1 bg-blue-600 rounded-full text-xs font-semibold">
                       {sortedBookings.length}
                     </span>
                   </h2>
-            <div className="space-y-4 max-h-[600px] overflow-y-auto">
+            <div className="space-y-4 flex-1 overflow-y-auto hide-scrollbar">
               {sortedBookings.length > 0 ? (
                 sortedBookings.map((booking, index) => (
                   <motion.div
@@ -785,7 +808,7 @@ export default function ProviderDashboard() {
                   animate={{ opacity: 1 }}
                   className="p-12 bg-gray-700 text-center border-2 border-dashed border-gray-600 rounded-lg"
                 >
-                  <div className="text-6xl mb-4">📭</div>
+                  <EnvelopeIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
                   <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
                   <p className="text-gray-300 text-sm">Bookings will appear here when clients book your services.</p>
                 </motion.div>
@@ -870,7 +893,7 @@ export default function ProviderDashboard() {
               )}
 
               {/* Categories Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[calc(100vh-450px)] overflow-y-auto hide-scrollbar">
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700">
                     <tr>

@@ -5,6 +5,7 @@ urlpatterns = [
     # /api/users/me/
     path('users/me/', views.CurrentUserView.as_view(), name='current-user'),
     
+    # ADMIN FUNCTIONALITY DISABLED
     # /api/admin/users/
-    path('admin/users/', views.AdminUserListView.as_view(), name='admin-user-list'),
+    # path('admin/users/', views.AdminUserListView.as_view(), name='admin-user-list'),
 ]

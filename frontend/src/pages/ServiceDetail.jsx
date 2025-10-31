@@ -62,6 +62,13 @@ export default function ServiceDetail() {
       return;
     }
 
+    // Validate time is between 8am and 5pm
+    const selectedHour = bookingDateTime.getHours();
+    if (selectedHour < 8 || selectedHour >= 17) {
+      showToast('Booking time must be between 8:00 AM and 5:00 PM.', 'error');
+      return;
+    }
+
     try {
       setBookingLoading(true);
       await bookingService.createBooking({
@@ -237,16 +244,19 @@ export default function ServiceDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Select Time
+                      Select Time (8:00 AM - 5:00 PM)
                     </label>
                     <input
                       type="time"
                       value={bookingTime}
                       onChange={(e) => setBookingTime(e.target.value)}
+                      min="08:00"
+                      max="17:00"
                       required
                       disabled={bookingLoading}
                       className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
                     />
+                    <p className="text-xs text-gray-400 mt-1">Available hours: 8:00 AM - 5:00 PM</p>
                   </div>
                 </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function FormInput({
   label,
@@ -53,7 +54,7 @@ export default function FormInput({
       )}
       {error && (
         <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-          <span>⚠</span>
+          <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </p>
       )}

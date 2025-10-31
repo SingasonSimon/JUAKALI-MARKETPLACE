@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import {
+  MagnifyingGlassIcon,
+  CheckBadgeIcon,
+  CurrencyDollarIcon
+} from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
@@ -229,17 +234,17 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                icon: '🔍',
+                Icon: MagnifyingGlassIcon,
                 title: 'Easy Search',
                 description: 'Find services quickly with our powerful search and filter tools'
               },
               {
-                icon: '✅',
+                Icon: CheckBadgeIcon,
                 title: 'Verified Providers',
                 description: 'All service providers are verified to ensure quality service'
               },
               {
-                icon: '💰',
+                Icon: CurrencyDollarIcon,
                 title: 'Fair Pricing',
                 description: 'Compare prices and choose the best deal for your budget'
               }
@@ -252,7 +257,9 @@ export default function Home() {
                 transition={{ delay: index * 0.1, duration: 0.5 }}
                 className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700 hover:border-blue-500 transition"
               >
-                <div className="text-5xl mb-4">{feature.icon}</div>
+                <div className="flex justify-center mb-4">
+                  <feature.Icon className="w-12 h-12 text-blue-400" />
+                </div>
                 <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
                 <p className="text-gray-300">{feature.description}</p>
               </motion.div>

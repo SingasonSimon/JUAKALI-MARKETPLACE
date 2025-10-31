@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import {
+  HandRaisedIcon,
+  CalendarIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  SparklesIcon,
+  ClipboardDocumentListIcon,
+  EnvelopeIcon,
+  WrenchScrewdriverIcon,
+  AcademicCapIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
 import { categoryService } from '../services/categoryService';
@@ -39,6 +51,13 @@ function BookingModal({ service, isOpen, onClose, onConfirm, loading }) {
       return;
     }
 
+    // Validate time is between 8am and 5pm
+    const selectedHour = bookingDateTime.getHours();
+    if (selectedHour < 8 || selectedHour >= 17) {
+      setError('Booking time must be between 8:00 AM and 5:00 PM.');
+      return;
+    }
+
     onConfirm(bookingDateTime.toISOString());
   };
 
@@ -49,9 +68,10 @@ function BookingModal({ service, isOpen, onClose, onConfirm, loading }) {
           <h3 className="text-2xl font-bold text-white">Book Service</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
+            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close"
           >
-            ×
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
@@ -79,15 +99,18 @@ function BookingModal({ service, isOpen, onClose, onConfirm, loading }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Select Time
+                Select Time (8:00 AM - 5:00 PM)
               </label>
               <input
                 type="time"
                 value={bookingTime}
                 onChange={(e) => setBookingTime(e.target.value)}
+                min="08:00"
+                max="17:00"
                 required
                 className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
               />
+              <p className="text-xs text-gray-400 mt-1">Available hours: 8:00 AM - 5:00 PM</p>
             </div>
 
             {error && (
@@ -237,9 +260,10 @@ function BookingDetailsModal({ booking, isOpen, onClose }) {
           <h3 className="text-2xl font-bold text-white">Booking Details</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
+            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close"
           >
-            ×
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
@@ -517,14 +541,18 @@ export default function SeekerDashboard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Welcome back, {dbUser?.first_name || 'Seeker'}! 👋
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              Welcome back, {(() => {
+                const name = dbUser?.first_name || dbUser?.email?.split('@')[0] || 'Seeker';
+                return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+              })()}!
+              <HandRaisedIcon className="w-8 h-8 text-blue-300" />
             </h1>
             <p className="text-blue-200 text-lg">Manage your bookings and discover new services</p>
           </div>
           <div className="hidden md:block">
-            <div className="w-24 h-24 rounded-full bg-white bg-opacity-10 flex items-center justify-center text-5xl">
-              🎯
+            <div className="w-24 h-24 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
+              <AcademicCapIcon className="w-12 h-12 text-white" />
             </div>
           </div>
         </div>
@@ -538,11 +566,13 @@ export default function SeekerDashboard() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {[
-          { label: 'Total Bookings', value: stats.totalBookings, icon: '📅', color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
-          { label: 'Pending', value: stats.pendingBookings, icon: '⏳', color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
-          { label: 'Confirmed', value: stats.confirmedBookings, icon: '✅', color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
-          { label: 'Completed', value: stats.completedBookings, icon: '🎉', color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
-        ].map((stat, index) => (
+          { label: 'Total Bookings', value: stats.totalBookings, Icon: CalendarIcon, color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
+          { label: 'Pending', value: stats.pendingBookings, Icon: ClockIcon, color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
+          { label: 'Confirmed', value: stats.confirmedBookings, Icon: CheckCircleIcon, color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
+          { label: 'Completed', value: stats.completedBookings, Icon: SparklesIcon, color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
+        ].map((stat, index) => {
+          const IconComponent = stat.Icon;
+          return (
           <motion.div
             key={index}
             variants={itemVariants}
@@ -550,12 +580,16 @@ export default function SeekerDashboard() {
             className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
           >
             <div className="flex items-start justify-between mb-2">
-              <span className="text-3xl">{stat.icon}</span>
+              {(() => {
+                const IconComponent = stat.Icon || (() => null);
+                return IconComponent ? <IconComponent className={`w-8 h-8 ${stat.color}`} /> : null;
+              })()}
               <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
             </div>
             <p className="text-gray-300 font-medium">{stat.label}</p>
           </motion.div>
-        ))}
+          );
+        })}
       </motion.div>
 
       {/* Search and Filter */}
@@ -602,13 +636,13 @@ export default function SeekerDashboard() {
         {/* Left Column: My Bookings */}
         <motion.div variants={itemVariants} className="lg:col-span-1">
           <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-            <span className="text-2xl">📋</span>
+            <ClipboardDocumentListIcon className="w-6 h-6" />
             <span>My Bookings</span>
             <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
               {sortedBookings.length}
             </span>
           </h2>
-          <div className="space-y-4 max-h-[600px] overflow-y-auto">
+          <div className="space-y-4 max-h-[calc(100vh-400px)] overflow-y-auto hide-scrollbar">
             {sortedBookings.length > 0 ? (
               sortedBookings.map((booking, index) => (
                 <motion.div
@@ -630,7 +664,7 @@ export default function SeekerDashboard() {
                 animate={{ opacity: 1 }}
                 className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
               >
-                <div className="text-6xl mb-4">📭</div>
+                <EnvelopeIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
                 <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
                 <p className="text-gray-300 text-sm">Browse services and book one to get started!</p>
               </motion.div>
@@ -641,7 +675,7 @@ export default function SeekerDashboard() {
         {/* Right Column: Available Services */}
         <motion.div variants={itemVariants} className="lg:col-span-2">
           <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-            <span className="text-2xl">🔧</span>
+            <WrenchScrewdriverIcon className="w-6 h-6" />
             <span>Available Services</span>
             <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
               {filteredServices.length}

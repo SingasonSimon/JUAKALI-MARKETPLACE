@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 
 const ToastContext = createContext();
 
@@ -61,15 +68,15 @@ function Toast({ toast, onClose }) {
     info: 'bg-blue-600',
   };
 
-  const iconColors = {
-    success: '✓',
-    error: '✕',
-    warning: '⚠',
-    info: 'ℹ',
+  const iconComponents = {
+    success: CheckCircleIcon,
+    error: XCircleIcon,
+    warning: ExclamationTriangleIcon,
+    info: InformationCircleIcon,
   };
 
   const bgColor = bgColors[toast.type] || bgColors.info;
-  const icon = iconColors[toast.type] || iconColors.info;
+  const IconComponent = iconComponents[toast.type] || iconComponents.info;
 
   return (
     <motion.div
@@ -85,16 +92,16 @@ function Toast({ toast, onClose }) {
       }`}
       role="alert"
     >
-      <div className="flex-shrink-0 text-2xl font-bold">{icon}</div>
+      <IconComponent className="flex-shrink-0 w-6 h-6" />
       <div className="flex-1">
         <p className="font-semibold">{toast.message}</p>
       </div>
       <button
         onClick={onClose}
-        className="text-white hover:text-gray-200 text-xl font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-white rounded"
+        className="text-white hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-white rounded"
         aria-label="Close notification"
       >
-        ×
+        <XMarkIcon className="w-5 h-5" />
       </button>
     </motion.div>
   );

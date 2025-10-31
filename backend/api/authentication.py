@@ -29,14 +29,40 @@ class FirebaseAuthentication(BaseAuthentication):
 
             # Get or create the user in Django's database
             # This links the Firebase user to a Django user
-            user, created = CustomUser.objects.get_or_create(
-                firebase_uid=firebase_uid,
-                defaults={
-                    'email': decoded_token.get('email'),
-                    'is_active': True
-                    # Add other fields you want to sync from Firebase
-                }
-            )
+            firebase_email = decoded_token.get('email')
+            
+            # First try to find user by email (in case admin was created before Firebase login)
+            user = None
+            if firebase_email:
+                try:
+                    user = CustomUser.objects.get(email=firebase_email)
+                    # Link Firebase UID to existing user
+                    if not user.firebase_uid:
+                        user.firebase_uid = firebase_uid
+                        user.save()
+                    elif user.firebase_uid != firebase_uid:
+                        # Firebase UID changed, update it
+                        user.firebase_uid = firebase_uid
+                        user.save()
+                except CustomUser.DoesNotExist:
+                    pass
+            
+            # If no user found by email, try by firebase_uid
+            if not user:
+                try:
+                    user = CustomUser.objects.get(firebase_uid=firebase_uid)
+                    # Update email if it changed in Firebase
+                    if firebase_email and user.email != firebase_email:
+                        user.email = firebase_email
+                        user.save()
+                except CustomUser.DoesNotExist:
+                    # Create new user if none exists
+                    user = CustomUser.objects.create(
+                        email=firebase_email or f"user_{firebase_uid}@firebase.local",
+                        firebase_uid=firebase_uid,
+                        is_active=True,
+                        role='SEEKER'  # Default role for new users
+                    )
 
             return (user, decoded_token)
 

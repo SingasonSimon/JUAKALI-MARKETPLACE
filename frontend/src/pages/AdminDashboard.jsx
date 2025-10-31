@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import {
+  BriefcaseIcon,
+  ShieldCheckIcon,
+  CheckCircleIcon,
+  WrenchScrewdriverIcon,
+  MagnifyingGlassIcon,
+  ClipboardDocumentListIcon,
+  CalendarIcon,
+  UserIcon
+} from '@heroicons/react/24/outline';
 import { adminService } from '../services/adminService';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
@@ -186,14 +196,15 @@ export default function AdminDashboard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Admin Dashboard 👨‍💼
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              Admin Dashboard
+              <BriefcaseIcon className="w-8 h-8 text-blue-300" />
             </h1>
             <p className="text-blue-200 text-lg">Manage users, services, and platform settings</p>
           </div>
           <div className="hidden md:block">
-            <div className="w-24 h-24 rounded-full bg-white bg-opacity-10 flex items-center justify-center text-5xl">
-              🛡️
+            <div className="w-24 h-24 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
+              <ShieldCheckIcon className="w-12 h-12 text-white" />
             </div>
           </div>
         </div>
@@ -207,24 +218,27 @@ export default function AdminDashboard() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {[
-          { label: 'Total Users', value: stats.totalUsers, icon: '👥', color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
-          { label: 'Active Users', value: stats.activeUsers, icon: '✅', color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
-          { label: 'Providers', value: stats.providers, icon: '🔧', color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
-          { label: 'Service Seekers', value: stats.seekers, icon: '🔍', color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-3xl">{stat.icon}</span>
-              <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
-            </div>
-            <p className="text-gray-300 font-medium">{stat.label}</p>
-          </motion.div>
-        ))}
+          { label: 'Total Users', value: stats.totalUsers, Icon: UserIcon, color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
+          { label: 'Active Users', value: stats.activeUsers, Icon: CheckCircleIcon, color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
+          { label: 'Providers', value: stats.providers, Icon: WrenchScrewdriverIcon, color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
+          { label: 'Service Seekers', value: stats.seekers, Icon: MagnifyingGlassIcon, color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
+        ].map((stat, index) => {
+          const IconComponent = stat.Icon;
+          return (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              whileHover={{ scale: 1.02 }}
+              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <IconComponent className={`w-8 h-8 ${stat.color}`} />
+                <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
+              </div>
+              <p className="text-gray-300 font-medium">{stat.label}</p>
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       {/* Additional Stats */}
@@ -235,23 +249,26 @@ export default function AdminDashboard() {
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
         {[
-          { label: 'Total Services', value: stats.totalServices, icon: '📋', color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
-          { label: 'Total Bookings', value: stats.totalBookings, icon: '📅', color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
-          { label: 'Admins', value: stats.admins, icon: '👨‍💼', color: 'text-red-400', bg: 'bg-red-900 bg-opacity-20' },
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-3xl">{stat.icon}</span>
-              <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
-            </div>
-            <p className="text-gray-300 font-medium">{stat.label}</p>
-          </motion.div>
-        ))}
+          { label: 'Total Services', value: stats.totalServices, Icon: ClipboardDocumentListIcon, color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
+          { label: 'Total Bookings', value: stats.totalBookings, Icon: CalendarIcon, color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
+          { label: 'Admins', value: stats.admins, Icon: BriefcaseIcon, color: 'text-red-400', bg: 'bg-red-900 bg-opacity-20' },
+        ].map((stat, index) => {
+          const IconComponent = stat.Icon;
+          return (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              whileHover={{ scale: 1.02 }}
+              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <IconComponent className={`w-8 h-8 ${stat.color}`} />
+                <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
+              </div>
+              <p className="text-gray-300 font-medium">{stat.label}</p>
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       {/* Tabs */}

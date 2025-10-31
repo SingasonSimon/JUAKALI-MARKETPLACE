@@ -11,7 +11,7 @@ from .permissions import (
 class CategoryListCreateView(generics.ListCreateAPIView):
     """
     GET: Returns a list of all categories (public access).
-    POST: Creates a new category (Provider or Admin only).
+    POST: Creates a new category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -19,7 +19,7 @@ class CategoryListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         """
         - GET requests are public (AllowAny)
-        - POST requests require provider or admin permission
+        - POST requests require provider permission  # ADMIN FUNCTIONALITY DISABLED
         """
         if self.request.method == 'POST':
             return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
@@ -28,8 +28,8 @@ class CategoryListCreateView(generics.ListCreateAPIView):
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET: Returns a single category (public access).
-    PUT/PATCH: Updates a category (Provider or Admin only).
-    DELETE: Deletes a category (Provider or Admin only).
+    PUT/PATCH: Updates a category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
+    DELETE: Deletes a category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -37,7 +37,7 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_permissions(self):
         """
         - GET requests are public (AllowAny)
-        - PUT/PATCH/DELETE require provider or admin permission
+        - PUT/PATCH/DELETE require provider permission  # ADMIN FUNCTIONALITY DISABLED
         """
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
             return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
@@ -110,7 +110,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
             return Booking.objects.filter(seeker=user)
         elif user.role == 'PROVIDER':
             return Booking.objects.filter(service__provider=user)
-        return Booking.objects.none() # Admins/etc. see nothing by default
+        return Booking.objects.none() # Users with other roles see nothing by default  # ADMIN FUNCTIONALITY DISABLED
 
     def perform_create(self, serializer):
         serializer.save(seeker=self.request.user)
