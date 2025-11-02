@@ -59,18 +59,37 @@ The Juakali Marketplace provides a centralized platform where:
 - **Category Management**: Organize services with custom categories (create, edit, delete)
 - **Booking Management**: View and update booking statuses (Pending → Confirmed → Completed/Cancelled)
 - **Analytics Dashboard**: Track total services, bookings, and status-based statistics
-- **Multi-tab Interface**: Separate views for services, bookings, and categories
+- **Multi-tab Interface**: Separate views for services, bookings, categories, and reviews
+- **Review Management**: View and respond to reviews from service seekers
+
+### For Administrators (ADMIN Role)
+
+- **User Management**: View, activate/deactivate, edit, and delete users across the platform
+- **Service Oversight**: Full CRUD operations on all services (create, edit, delete)
+- **Category Management**: Create, edit, and delete categories system-wide
+- **Booking Management**: View and manage all bookings with status updates
+- **Complaint Resolution**: Review, respond to, and resolve user complaints
+- **Review Moderation**: View, edit, and delete reviews across the platform
+- **Analytics Dashboard**: Comprehensive platform statistics (users, services, bookings, reviews)
+- **Reports System**: Generate detailed reports on user activity, service performance, and booking analytics with CSV export
+- **Audit Logs**: Track all admin actions for transparency and accountability
+- **Django Admin Integration**: Access admin dashboard via frontend while authenticated through Django admin
 
 ### General Features
 
 - **Firebase Authentication**: Secure user registration and login with email/password
+- **Django Admin Session Support**: Django admin users can access frontend admin dashboard
 - **Role-Based Access Control**: Separate dashboards and permissions for different user types
+- **Reviews & Ratings**: Service seekers can rate and review services; providers can view feedback
+- **Complaints System**: Users can file complaints; admins can review and resolve them
+- **Email Notifications**: Configurable email notifications for bookings, reviews, and complaints (Gmail SMTP supported)
 - **Responsive Design**: Fully responsive UI optimized for desktop, tablet, and mobile devices
 - **Dark Mode Theme**: Consistent modern dark theme throughout the application
-- **Real-time Updates**: Instant UI updates when data changes
+- **Real-time Updates**: Instant UI updates when data changes with auto-refresh capabilities
 - **Error Handling**: Comprehensive error boundaries and user-friendly error messages
 - **Loading States**: Skeleton loaders and loading indicators for better UX
 - **Toast Notifications**: Success, error, and info notifications for user actions
+- **Smart Navigation**: Back navigation preserves browser history; logged-in users redirected to dashboard
 
 ## 🛠️ Tech Stack
 
@@ -90,7 +109,9 @@ The Juakali Marketplace provides a centralized platform where:
 - **Django REST Framework 3.16.1** - RESTful API development
 - **Firebase Admin SDK 7.1.0** - Server-side Firebase integration for authentication
 - **django-cors-headers 4.9.0** - CORS middleware for cross-origin requests
+- **python-dotenv 1.0.0** - Environment variable management
 - **SQLite** - Default database (easily switchable to PostgreSQL for production)
+- **Email Support** - SMTP email configuration with Gmail support
 
 ### Development Approach
 - **Agile-Scrum Methodology** - Iterative development with sprints
@@ -107,19 +128,23 @@ JUAKALI MARKETPLACE/
 │   │   ├── permissions.py     # Custom permission classes
 │   │   ├── urls.py            # API URL routing
 │   │   └── views.py           # API views (users, admin endpoints)
-│   ├── services/              # Services app (services, bookings, categories)
-│   │   ├── models.py          # Service, Category, Booking models
+│   ├── services/              # Services app (services, bookings, categories, reviews, complaints)
+│   │   ├── models.py          # Service, Category, Booking, Review, Complaint models
 │   │   ├── serializers.py     # DRF serializers
-│   │   ├── views.py           # Service, Booking, Category views
+│   │   ├── views.py           # Service, Booking, Category, Review, Complaint views
 │   │   ├── urls.py            # Service-related URLs
-│   │   └── permissions.py    # Provider, Seeker, Owner permissions
-│   ├── users/                 # User models and serializers
-│   │   ├── models.py          # CustomUser model with roles
-│   │   └── serializers.py    # User serialization
+│   │   └── permissions.py    # Provider, Seeker, Owner, Admin permissions
 │   ├── core/                   # Django settings and configuration
 │   │   ├── settings.py        # Django configuration
+│   │   ├── email_utils.py    # Email notification utilities
 │   │   ├── urls.py            # Main URL configuration
 │   │   └── firebase-service-account.json  # Firebase credentials
+│   ├── templates/              # Email templates
+│   │   └── emails/            # HTML email templates for notifications
+│   ├── users/                 # User models and serializers
+│   │   ├── models.py          # CustomUser model with roles and email_notifications
+│   │   ├── serializers.py    # User serialization
+│   │   └── backends.py       # Custom email authentication backend
 │   ├── manage.py              # Django management script
 │   └── requirements.txt       # Python dependencies
 │
@@ -129,14 +154,19 @@ JUAKALI MARKETPLACE/
 │   │   │   └── apiClient.js   # Axios configuration with interceptors
 │   │   ├── components/        # Reusable React components
 │   │   │   ├── DashboardLayout.jsx    # Main dashboard layout with sidebar
-│   │   │   ├── Navbar.jsx             # Public navigation bar
+│   │   │   ├── AdminLayout.jsx       # Admin dashboard layout
+│   │   │   ├── Navbar.jsx             # Public navigation bar (responsive)
 │   │   │   ├── Footer.jsx             # Footer component
 │   │   │   ├── FormInput.jsx         # Reusable form input
 │   │   │   ├── LoadingButton.jsx     # Button with loading state
 │   │   │   ├── LoadingSkeleton.jsx   # Skeleton loaders
 │   │   │   ├── Pagination.jsx        # Pagination component
 │   │   │   ├── ConfirmationDialog.jsx # Delete confirmation modals
-│   │   │   └── ErrorBoundary.jsx     # Error handling component
+│   │   │   ├── ErrorBoundary.jsx     # Error handling component
+│   │   │   ├── ComplaintForm.jsx     # Complaint submission form
+│   │   │   ├── ReviewForm.jsx         # Review submission form
+│   │   │   ├── ReviewList.jsx         # Review display component
+│   │   │   └── StarRating.jsx        # Star rating component
 │   │   ├── context/           # React Context providers
 │   │   │   ├── AuthContext.jsx      # Authentication state management
 │   │   │   └── ToastContext.jsx     # Toast notification system
@@ -149,6 +179,10 @@ JUAKALI MARKETPLACE/
 │   │   │   ├── ServiceDetail.jsx     # Individual service details
 │   │   │   ├── SeekerDashboard.jsx   # Seeker role dashboard
 │   │   │   ├── ProviderDashboard.jsx # Provider role dashboard
+│   │   │   ├── AdminDashboard.jsx     # Admin role dashboard
+│   │   │   ├── AdminProfile.jsx      # Admin profile page
+│   │   │   ├── AdminSettings.jsx     # Admin settings page
+│   │   │   ├── DjangoAdminPage.jsx   # Django admin wrapper page
 │   │   │   ├── Profile.jsx           # User profile page
 │   │   │   ├── Settings.jsx          # User settings page
 │   │   │   └── DashboardRedirect.jsx # Role-based dashboard routing
@@ -157,7 +191,11 @@ JUAKALI MARKETPLACE/
 │   │   │   ├── serviceService.js      # Service CRUD operations
 │   │   │   ├── bookingService.js     # Booking management
 │   │   │   ├── categoryService.js    # Category management
-│   │   │   └── userService.js        # User profile management
+│   │   │   ├── userService.js        # User profile management
+│   │   │   ├── reviewService.js      # Review management
+│   │   │   ├── complaintService.js   # Complaint management
+│   │   │   ├── adminService.js       # Admin API operations
+│   │   │   └── djangoAdminService.js # Django admin API operations
 │   │   ├── firebaseConfig.js  # Firebase configuration
 │   │   ├── App.jsx            # Main App component with routing
 │   │   └── index.css          # Global styles and Tailwind directives
@@ -261,7 +299,7 @@ You can either:
   ```
   cd Desktop
   ```
-- Clone the repository (you'll need the repository URL)
+- Clone the repository https://github.com/SingasonSimon/JUAKALI-MARKETPLACE.git
 
 ### Setting Up the Backend
 
@@ -581,6 +619,24 @@ npm install
    # backend/core/firebase-service-account.json
    ```
 
+6. **Email Configuration (Optional)**
+
+   For email notifications, create a `.env` file in the `backend/` directory:
+
+   ```env
+   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-app-password
+   DEFAULT_FROM_EMAIL=your-email@gmail.com
+   ```
+
+   **Note**: For Gmail, you'll need to generate an [App Password](https://support.google.com/accounts/answer/185833) (not your regular password).
+
+   If email is not configured, emails will be printed to the console (development mode).
+
 ## 🎮 Usage
 
 ### Starting the Development Servers
@@ -621,8 +677,9 @@ npm install
    - You'll be redirected to your role-specific dashboard
 
 3. **Role-Based Access**
-   - **SEEKER**: Access to service browsing, booking, and booking management
-   - **PROVIDER**: Access to service creation, category management, and booking updates
+   - **SEEKER**: Access to service browsing, booking, booking management, reviews, and complaints
+   - **PROVIDER**: Access to service creation, category management, booking updates, and review viewing
+   - **ADMIN**: Access to admin dashboard via Django admin login (`http://localhost:8000/admin/`) then navigate to `http://localhost:5173/admin`
 
 ## 📚 API Documentation
 
@@ -654,19 +711,49 @@ Authorization: Bearer <firebase_id_token>
 - `DELETE /api/categories/:id/` - Delete category (Provider only)
 
 #### Bookings
-- `GET /api/bookings/` - List user's bookings (Seeker/Provider)
+- `GET /api/bookings/` - List user's bookings (Seeker/Provider/Admin)
   - Seekers see their own bookings
   - Providers see bookings for their services
+  - Admins see all bookings
 - `POST /api/bookings/` - Create booking (Seeker only)
   - Requires: `service` (ID), `booking_date` (ISO datetime)
   - Time must be between 8:00 AM - 5:00 PM
 - `GET /api/bookings/:id/` - Get booking details
-- `PUT /api/bookings/:id/` - Update booking status
-- `DELETE /api/bookings/:id/` - Cancel booking
+- `PUT /api/bookings/:id/` - Update booking status (Owner/Provider/Admin)
+- `DELETE /api/bookings/:id/` - Cancel booking (Owner/Admin)
+
+#### Reviews
+- `GET /api/reviews/` - List reviews (public or filtered by service)
+- `POST /api/reviews/` - Create review (Seeker only, one per service)
+- `GET /api/reviews/:id/` - Get review details
+- `PUT /api/reviews/:id/` - Update review (Owner/Admin)
+- `DELETE /api/reviews/:id/` - Delete review (Owner/Admin)
+
+#### Complaints
+- `GET /api/complaints/` - List user's complaints (Seeker) or all complaints (Admin)
+- `POST /api/complaints/` - Create complaint (Authenticated users)
+- `GET /api/complaints/:id/` - Get complaint details
+- `PUT /api/complaints/:id/` - Update complaint status and admin response (Admin only)
+- `DELETE /api/complaints/:id/` - Delete complaint (Admin only)
 
 #### Users
 - `GET /api/users/me/` - Get current user details (authenticated)
-- `PATCH /api/users/me/` - Update user profile (authenticated)
+- `PATCH /api/users/me/` - Update user profile and preferences (authenticated)
+  - Supports updating: `first_name`, `last_name`, `email_notifications`
+
+#### Admin Endpoints (Admin only)
+- `GET /api/admin/users/` - List all users
+- `GET /api/admin/users/:id/` - Get user details
+- `PATCH /api/admin/users/:id/` - Update user (role, name, etc.)
+- `DELETE /api/admin/users/:id/` - Delete user
+- `POST /api/admin/users/:id/activate/` - Activate/deactivate user
+- `GET /api/admin/analytics/` - Get platform analytics
+- `GET /api/admin/reports/` - Generate reports (user_activity, service_performance, booking_analytics)
+- `GET /api/admin/action-logs/` - View admin action audit logs
+
+#### Django Admin Session (Django admin users)
+- `GET /api/django-admin/session/` - Check Django admin session and get CSRF token
+- `POST /api/django-admin/logout/` - Logout Django admin user
 
 ### Response Formats
 
@@ -698,7 +785,11 @@ Authorization: Bearer <firebase_id_token>
 - ✅ Create bookings (8:00 AM - 5:00 PM time restriction)
 - ✅ View own bookings
 - ✅ Cancel own bookings
+- ✅ Rate and review services (one review per service)
+- ✅ File complaints
+- ✅ View own complaints
 - ✅ Update profile and settings
+- ✅ Configure email notifications
 - ❌ Cannot create or edit services
 - ❌ Cannot manage categories
 - ❌ Cannot view other users' bookings
@@ -709,9 +800,25 @@ Authorization: Bearer <firebase_id_token>
 - ✅ View bookings for own services
 - ✅ Update booking statuses (Confirm, Complete, Cancel)
 - ✅ View provider dashboard with statistics
+- ✅ View reviews for own services
 - ✅ Update profile and settings
+- ✅ Configure email notifications
 - ❌ Cannot book services
 - ❌ Cannot view bookings for other providers' services
+- ❌ Cannot create reviews
+
+### ADMIN Role
+- ✅ Full user management (view, edit, activate/deactivate, delete)
+- ✅ Full service management (view, create, edit, delete all services)
+- ✅ Full category management (view, create, edit, delete all categories)
+- ✅ Full booking management (view, update, delete all bookings)
+- ✅ Complaint resolution (view, respond, resolve complaints)
+- ✅ Review moderation (view, edit, delete all reviews)
+- ✅ Platform analytics dashboard
+- ✅ Generate and export reports (CSV format)
+- ✅ View audit logs of all admin actions
+- ✅ Access via Django admin or frontend admin dashboard
+- ✅ Configure email notifications
 
 ## 🎨 UI/UX Features
 
@@ -832,13 +939,16 @@ Potential features for future development:
 
 - **Payment Integration**: M-Pesa, Flutterwave, or other payment gateways
 - **Geolocation Services**: Google Maps/Leaflet for location-based service discovery
-- **Review and Rating System**: User feedback and reputation tracking
 - **Messaging System**: In-app communication between seekers and providers
 - **Mobile Application**: Native iOS/Android apps
-- **Analytics Dashboard**: Advanced reporting for providers
+- **Advanced Analytics**: More detailed reporting and visualization for providers
 - **Multi-language Support**: Local language options
-- **Service Scheduling**: Advanced calendar integration
-- **Notification System**: Email and SMS notifications for bookings
+- **Service Scheduling**: Advanced calendar integration with availability management
+- **SMS Notifications**: SMS alerts in addition to email notifications
+- **Push Notifications**: Browser push notifications for real-time updates
+- **Service Images**: Upload and manage service images
+- **Provider Verification**: Badge system for verified providers
+- **Service Recommendations**: AI-powered service recommendations for seekers
 
 ## 🤝 Contributing
 
@@ -861,6 +971,26 @@ Contributions are welcome! Please follow these guidelines:
 
 This project is licensed under the MIT License.
 
+## ✨ Recent Updates
+
+### Implemented Features
+- ✅ **Email Notifications**: Full email notification system with Gmail SMTP support
+- ✅ **Reviews & Ratings**: Complete review system with star ratings
+- ✅ **Complaints System**: User complaint filing and admin resolution workflow
+- ✅ **Admin Dashboard**: Comprehensive admin interface with full CRUD operations
+- ✅ **Analytics & Reports**: Platform analytics with CSV export functionality
+- ✅ **Audit Logging**: Complete admin action tracking for transparency
+- ✅ **Django Admin Integration**: Seamless frontend access for Django admin users
+- ✅ **Smart Navigation**: Browser history-aware back navigation
+- ✅ **Responsive Design**: Mobile-optimized navbar and hero section
+- ✅ **Environment Variables**: Secure credential management with `.env` files
+
+### Security & Performance
+- ✅ **CSRF Protection**: Proper CSRF token handling for Django admin sessions
+- ✅ **Session Management**: Secure session-based authentication for admin users
+- ✅ **Auto-refresh**: Automatic data refresh for complaints and bookings
+- ✅ **Error Handling**: Comprehensive error boundaries and user feedback
+
 ## 🙏 Acknowledgments
 
 - **Firebase** for robust authentication services
@@ -869,6 +999,7 @@ This project is licensed under the MIT License.
 - **Tailwind CSS** for rapid, utility-first UI development
 - **Framer Motion** for smooth animations
 - **Heroicons** for beautiful, consistent iconography
+- **python-dotenv** for secure environment variable management
 
 ## 📞 Support
 

@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
 import FormInput from '../components/FormInput';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { djangoAdminService } from '../services/djangoAdminService';
 
 export default function AdminSettings() {
   const { djangoAdminUser } = useOutletContext();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Load email_notifications preference from backend
+  useEffect(() => {
+    if (djangoAdminUser && djangoAdminUser.email_notifications !== undefined) {
+      setNotificationsEnabled(djangoAdminUser.email_notifications);
+    }
+  }, [djangoAdminUser]);
 
   const handleExportData = async () => {
     setLoading(true);
@@ -46,22 +55,35 @@ export default function AdminSettings() {
     }
   };
 
-  const handleNotificationToggle = () => {
+  const handleNotificationToggle = async () => {
     const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    localStorage.setItem('adminNotificationsEnabled', JSON.stringify(newValue));
-    showToast(
-      `Email notifications ${newValue ? 'enabled' : 'disabled'}`,
-      'success'
-    );
-  };
-
-  React.useEffect(() => {
-    const saved = localStorage.getItem('adminNotificationsEnabled');
-    if (saved !== null) {
-      setNotificationsEnabled(JSON.parse(saved));
+    setNotificationsLoading(true);
+    
+    try {
+      // Update preference on backend using the current user endpoint
+      await djangoAdminService.updateCurrentUser({
+        email_notifications: newValue
+      });
+      
+      // Update local state
+      setNotificationsEnabled(newValue);
+      
+      showToast(
+        `Email notifications ${newValue ? 'enabled' : 'disabled'}`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Failed to update email notifications:', error);
+      showToast(
+        'Failed to update email notifications preference',
+        'error'
+      );
+      // Revert toggle on error
+      setNotificationsEnabled(!newValue);
+    } finally {
+      setNotificationsLoading(false);
     }
-  }, []);
+  };
 
   return (
     <motion.div
@@ -159,8 +181,9 @@ export default function AdminSettings() {
                 className="sr-only peer"
                 checked={notificationsEnabled}
                 onChange={handleNotificationToggle}
+                disabled={notificationsLoading}
               />
-              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className={`w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${notificationsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
             </label>
           </div>
         </div>

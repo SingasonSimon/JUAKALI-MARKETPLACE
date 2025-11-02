@@ -315,6 +315,19 @@ const logout = async () => {
   }
 };
 
+/**
+ * Update current user (Django admin user's own profile)
+ */
+const updateCurrentUser = async (userData) => {
+  try {
+    const { data } = await djangoAdminApiClient.patch('/users/me/', userData);
+    return data;
+  } catch (error) {
+    console.error("Error updating current user:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const djangoAdminService = {
   checkSession,
   getAllUsers,
@@ -341,6 +354,7 @@ export const djangoAdminService = {
   getReview,
   updateReview,
   deleteReview,
+  updateCurrentUser,
   logout,
 };
 
