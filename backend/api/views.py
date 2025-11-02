@@ -24,7 +24,7 @@ class CurrentUserView(RetrieveUpdateAPIView):
     """
     Handles GET and PATCH requests for the currently authenticated user.
     - GET /api/users/me/: Returns the user's details.
-    - PATCH /api/users/me/: Updates the user's details (e.g., role, name).
+    - PATCH /api/users/me/: Updates the user's details (e.g., role, name, email_notifications).
     """
     serializer_class = CustomUserSerializer
     permission_classes = [IsAuthenticated]
@@ -35,6 +35,12 @@ class CurrentUserView(RetrieveUpdateAPIView):
         Our FirebaseAuthentication class already attached the user to request.user.
         """
         return self.request.user
+    
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Allow partial updates, including email_notifications preference.
+        """
+        return super().partial_update(request, *args, **kwargs)
 
 class DjangoAdminSessionView(APIView):
     """

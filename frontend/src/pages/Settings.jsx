@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -6,12 +6,14 @@ import LoadingButton from '../components/LoadingButton';
 import FormInput from '../components/FormInput';
 import { updatePassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
+import apiClient from '../api/apiClient';
 
 export default function Settings() {
-  const { dbUser, firebaseUser } = useAuth();
+  const { dbUser, firebaseUser, refreshUser } = useAuth();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -19,6 +21,13 @@ export default function Settings() {
     confirmPassword: '',
   });
   const [passwordErrors, setPasswordErrors] = useState({});
+
+  // Load email_notifications preference from backend
+  useEffect(() => {
+    if (dbUser && dbUser.email_notifications !== undefined) {
+      setNotificationsEnabled(dbUser.email_notifications);
+    }
+  }, [dbUser]);
 
   const handleExportData = async () => {
     setLoading(true);
@@ -129,22 +138,40 @@ export default function Settings() {
     }
   };
 
-  const handleNotificationToggle = () => {
+  const handleNotificationToggle = async () => {
     const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    localStorage.setItem('notificationsEnabled', JSON.stringify(newValue));
-    showToast(
-      `Email notifications ${newValue ? 'enabled' : 'disabled'}`,
-      'success'
-    );
-  };
-
-  React.useEffect(() => {
-    const saved = localStorage.getItem('notificationsEnabled');
-    if (saved !== null) {
-      setNotificationsEnabled(JSON.parse(saved));
+    setNotificationsLoading(true);
+    
+    try {
+      // Update preference on backend
+      const response = await apiClient.patch('/users/me/', {
+        email_notifications: newValue
+      });
+      
+      // Update local state
+      setNotificationsEnabled(newValue);
+      
+      // Refresh user data in auth context
+      if (refreshUser) {
+        await refreshUser();
+      }
+      
+      showToast(
+        `Email notifications ${newValue ? 'enabled' : 'disabled'}`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Failed to update email notifications:', error);
+      showToast(
+        'Failed to update email notifications preference',
+        'error'
+      );
+      // Revert toggle on error
+      setNotificationsEnabled(!newValue);
+    } finally {
+      setNotificationsLoading(false);
     }
-  }, []);
+  };
 
   return (
     <motion.div
@@ -262,8 +289,9 @@ export default function Settings() {
                 className="sr-only peer"
                 checked={notificationsEnabled}
                 onChange={handleNotificationToggle}
+                disabled={notificationsLoading}
               />
-              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className={`w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${notificationsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
             </label>
           </div>
         </div>

@@ -117,6 +117,21 @@ export function AuthProvider({ children }) {
     // The useEffect listener will handle clearing state
   };
 
+  // Function to refresh user data from backend
+  const refreshUser = async () => {
+    if (firebaseUser) {
+      try {
+        const djangoUser = await authService.getCurrentUser();
+        setDbUser(djangoUser);
+        return djangoUser;
+      } catch (error) {
+        console.error("Error refreshing user data:", error);
+        throw error;
+      }
+    }
+    return null;
+  };
+
   // The value provided to consuming components
   const value = {
     firebaseUser,   // The user from Firebase (has email, uid, etc.)
@@ -126,6 +141,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    refreshUser,    // Function to refresh user data from backend
   };
 
   return (

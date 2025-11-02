@@ -16,6 +16,13 @@ from .permissions import (
 )
 from api.permissions import IsAdminUser
 from api.authentication import FirebaseAuthentication
+from core.email_utils import (
+    send_booking_confirmation_email,
+    send_booking_completed_email,
+    send_booking_canceled_email,
+    send_new_review_email,
+    send_complaint_resolved_email
+)
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     """
@@ -128,7 +135,10 @@ class BookingListCreateView(generics.ListCreateAPIView):
         return Booking.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(seeker=self.request.user)
+        booking = serializer.save(seeker=self.request.user)
+        # If booking is created with CONFIRMED status, send confirmation email
+        if booking.status == 'CONFIRMED':
+            send_booking_confirmation_email(booking)
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -154,6 +164,36 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
         elif user.role == 'PROVIDER':
             return Booking.objects.filter(service__provider=user)
         return Booking.objects.none()
+    
+    def update(self, request, *args, **kwargs):
+        """Handle booking updates and send email notifications."""
+        instance = self.get_object()
+        old_status = instance.status
+        
+        # Perform the update
+        response = super().update(request, *args, **kwargs)
+        
+        # Refresh instance to get updated status
+        instance.refresh_from_db()
+        new_status = instance.status
+        
+        # Send email notifications based on status changes
+        if old_status != new_status:
+            if new_status == 'CONFIRMED':
+                send_booking_confirmation_email(instance)
+            elif new_status == 'COMPLETED':
+                send_booking_completed_email(instance)
+            elif new_status == 'CANCELED':
+                # Determine who canceled the booking
+                if request.user == instance.seeker:
+                    canceled_by = 'SEEKER'
+                elif request.user == instance.service.provider:
+                    canceled_by = 'PROVIDER'
+                else:
+                    canceled_by = 'ADMIN'  # Admin canceled
+                send_booking_canceled_email(instance, canceled_by)
+        
+        return response
     
 class ProviderServiceListView(generics.ListAPIView):
     """
@@ -199,7 +239,9 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         return queryset.order_by('-created_at')
     
     def perform_create(self, serializer):
-        serializer.save(seeker=self.request.user)
+        review = serializer.save(seeker=self.request.user)
+        # Send email notification to provider when a new review is posted
+        send_new_review_email(review)
 
 class ReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -287,6 +329,8 @@ class ComplaintDetailView(generics.RetrieveUpdateDestroyAPIView):
             from django.utils import timezone
             instance.resolved_at = timezone.now()
             instance.save()
+            # Send email notification when complaint is resolved
+            send_complaint_resolved_email(instance)
         # Clear resolved_at if status is changed away from RESOLVED
         elif old_status == 'RESOLVED' and instance.status != 'RESOLVED':
             instance.resolved_at = None
