@@ -22,4 +22,16 @@ urlpatterns = [
     
     # /api/services/my-services/
     path('services/my-services/', views.ProviderServiceListView.as_view(), name='provider-service-list'),
+    
+    # /api/reviews/
+    path('reviews/', views.ReviewListCreateView.as_view(), name='review-list-create'),
+    
+    # /api/reviews/<pk>/
+    path('reviews/<int:pk>/', views.ReviewDetailView.as_view(), name='review-detail'),
+    
+    # /api/complaints/
+    path('complaints/', views.ComplaintListCreateView.as_view(), name='complaint-list-create'),
+    
+    # /api/complaints/<pk>/
+    path('complaints/<int:pk>/', views.ComplaintDetailView.as_view(), name='complaint-detail'),
 ]

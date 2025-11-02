@@ -9,6 +9,10 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import DashboardRedirect from './pages/DashboardRedirect';
 import ServiceDetail from './pages/ServiceDetail';
+import DjangoAdminPage from './pages/DjangoAdminPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminProfile from './pages/AdminProfile';
+import AdminSettings from './pages/AdminSettings';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -63,6 +67,13 @@ export default function App() {
               } 
             />
             <Route path="services/:id" element={<ServiceDetail />} />
+          </Route>
+
+          {/* Django Admin Routes (for Django admin users via session) */}
+          <Route path="/admin" element={<DjangoAdminPage />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Protected Dashboard Route */}

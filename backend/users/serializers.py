@@ -12,5 +12,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'first_name', 
             'last_name',
             'is_active',
+            'date_joined',
         ]
-        read_only_fields = ['id', 'email', 'firebase_uid', 'is_active']
+        read_only_fields = ['id', 'email', 'firebase_uid', 'is_active', 'date_joined']

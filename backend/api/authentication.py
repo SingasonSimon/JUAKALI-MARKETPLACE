@@ -1,4 +1,4 @@
-from rest_framework.authentication import BaseAuthentication
+from rest_framework.authentication import BaseAuthentication, SessionAuthentication
 from rest_framework import exceptions
 from firebase_admin import auth
 from django.conf import settings
@@ -12,7 +12,7 @@ class FirebaseAuthentication(BaseAuthentication):
         auth_header = request.headers.get('Authorization')
 
         if not auth_header:
-            return None  # No auth header, let other auth methods try
+            return None  # No auth header, let SessionAuthentication try
 
         try:
             # Expecting "Bearer <token>"

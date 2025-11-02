@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from users.admin import admin_analytics_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('admin/analytics/', admin_analytics_view, name='admin_analytics'),
     
     # Routes /api/users/me/
     path('api/', include('api.urls')),

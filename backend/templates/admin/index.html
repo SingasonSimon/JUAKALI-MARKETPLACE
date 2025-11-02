@@ -1,0 +1,16 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div style="margin-bottom: 20px; padding: 15px; background: #417690; color: white; border-radius: 5px;">
+    <h2 style="margin: 0 0 10px 0; color: white;">
+        <a href="{% url 'admin_analytics' %}" style="color: white; text-decoration: none;">
+            📊 View Platform Analytics Dashboard →
+        </a>
+    </h2>
+    <p style="margin: 0; opacity: 0.9;">
+        Access comprehensive platform statistics, user metrics, service performance, and recent activity reports.
+    </p>
+</div>
+{{ block.super }}
+{% endblock %}
+

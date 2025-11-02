@@ -3,9 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
+import { reviewService } from '../services/reviewService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
+import StarRating from '../components/StarRating';
+import ReviewList from '../components/ReviewList';
+import ReviewForm from '../components/ReviewForm';
 
 export default function ServiceDetail() {
   const { id } = useParams();
@@ -19,6 +23,9 @@ export default function ServiceDetail() {
   const [bookingTime, setBookingTime] = useState('');
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [userReview, setUserReview] = useState(null);
 
   useEffect(() => {
     const loadService = async () => {
@@ -27,6 +34,20 @@ export default function ServiceDetail() {
         setError(null);
         const serviceData = await serviceService.getServiceById(id);
         setService(serviceData);
+        
+        // Load reviews
+        try {
+          const reviewsData = await reviewService.getServiceReviews(id);
+          setReviews(reviewsData);
+          
+          // Check if current user has a review
+          if (dbUser && dbUser.role === 'SEEKER') {
+            const myReview = reviewsData.find(r => r.seeker === dbUser.id);
+            setUserReview(myReview || null);
+          }
+        } catch (err) {
+          console.error('Failed to load reviews:', err);
+        }
       } catch (err) {
         setError('Failed to load service details.');
         console.error(err);
@@ -35,7 +56,22 @@ export default function ServiceDetail() {
       }
     };
     loadService();
-  }, [id]);
+  }, [id, dbUser]);
+  
+  const handleReviewUpdate = async () => {
+    try {
+      const reviewsData = await reviewService.getServiceReviews(id);
+      setReviews(reviewsData);
+      
+      if (dbUser && dbUser.role === 'SEEKER') {
+        const myReview = reviewsData.find(r => r.seeker === dbUser.id);
+        setUserReview(myReview || null);
+      }
+      setShowReviewForm(false);
+    } catch (err) {
+      console.error('Failed to reload reviews:', err);
+    }
+  };
 
   const handleBookService = async (e) => {
     e.preventDefault();
@@ -101,9 +137,12 @@ export default function ServiceDetail() {
     return (
       <div className="text-center py-20">
         <p className="text-xl mb-4 text-red-400 font-semibold">{error || 'Service not found'}</p>
-        <Link to="/" className="text-blue-400 hover:text-blue-300 transition">
-          Back to Home
-        </Link>
+        <button 
+          onClick={() => window.history.back()}
+          className="text-blue-400 hover:text-blue-300 transition"
+        >
+          Go Back
+        </button>
       </div>
     );
   }
@@ -127,15 +166,15 @@ export default function ServiceDetail() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Link 
-          to="/" 
+        <button 
+          onClick={() => window.history.back()}
           className="inline-flex items-center text-blue-400 hover:text-blue-300 mb-6 transition"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Services
-        </Link>
+          Back
+        </button>
       </motion.div>
 
       <motion.div
@@ -149,10 +188,18 @@ export default function ServiceDetail() {
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
               <h1 className="text-4xl font-bold text-white mb-2">{service.title}</h1>
-              <div className="flex items-center gap-4 text-gray-300">
+              <div className="flex items-center gap-4 text-gray-300 mb-2">
                 <span className="bg-gray-700 px-3 py-1 rounded text-gray-300">{service.category_details?.name || 'Uncategorized'}</span>
                 <span className="text-gray-300">By {service.provider_details?.first_name} {service.provider_details?.last_name}</span>
               </div>
+              {service.average_rating && (
+                <div className="flex items-center gap-2">
+                  <StarRating rating={service.average_rating} readonly size="sm" />
+                  <span className="text-gray-400 text-sm">
+                    ({service.review_count} {service.review_count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <p className="text-4xl font-bold text-blue-400 mb-2">
@@ -287,6 +334,40 @@ export default function ServiceDetail() {
             </div>
           </div>
         )}
+        
+        {/* Reviews Section */}
+        <div className="p-8 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-white">
+              Reviews {service.review_count > 0 && `(${service.review_count})`}
+            </h2>
+            {canBook && !userReview && !showReviewForm && (
+              <LoadingButton
+                onClick={() => setShowReviewForm(true)}
+                className="px-4 py-2"
+              >
+                Write a Review
+              </LoadingButton>
+            )}
+          </div>
+          
+          {showReviewForm && (
+            <div className="mb-6">
+              <ReviewForm
+                serviceId={id}
+                existingReview={userReview}
+                onSuccess={handleReviewUpdate}
+                onCancel={() => setShowReviewForm(false)}
+              />
+            </div>
+          )}
+          
+          <ReviewList
+            reviews={reviews}
+            onUpdate={handleReviewUpdate}
+            canEdit={canBook}
+          />
+        </div>
       </motion.div>
     </motion.div>
   );

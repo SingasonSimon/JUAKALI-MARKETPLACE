@@ -1,0 +1,361 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Platform Analytics{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .analytics-container {
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stat-card h3 {
+        margin: 0 0 15px 0;
+        color: #333;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #007bff;
+        margin: 10px 0;
+    }
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        margin: 30px 0 15px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+    }
+    .table-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #dee2e6;
+    }
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #dee2e6;
+        color: #555;
+    }
+    tr:hover {
+        background: #f8f9fa;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <h1 style="margin-bottom: 30px; color: #333;">Platform Analytics Dashboard</h1>
+    
+    <!-- Overview Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>👥 Users</h3>
+            <div class="stat-value">{{ users.total }}</div>
+            <div class="stat-item">
+                <span class="stat-label">Active Users:</span>
+                <strong>{{ users.active }}</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">New (30 days):</span>
+                <strong>{{ users.new_30d }}</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">New (7 days):</span>
+                <strong>{{ users.new_7d }}</strong>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🛠️ Services</h3>
+            <div class="stat-value">{{ services.total }}</div>
+            <div class="stat-item">
+                <span class="stat-label">Avg Price:</span>
+                <strong>KES {{ services.avg_price|floatformat:0 }}</strong>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>📅 Bookings</h3>
+            <div class="stat-value">{{ bookings.total }}</div>
+            <div class="stat-item">
+                <span class="stat-label">New (30 days):</span>
+                <strong>{{ bookings.new_30d }}</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">New (7 days):</span>
+                <strong>{{ bookings.new_7d }}</strong>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>⭐ Reviews</h3>
+            <div class="stat-value">{{ reviews.total }}</div>
+            <div class="stat-item">
+                <span class="stat-label">Avg Rating:</span>
+                <strong>{{ reviews.avg_rating }}</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">New (30 days):</span>
+                <strong>{{ reviews.new_30d }}</strong>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>⚠️ Complaints</h3>
+            <div class="stat-value">{{ complaints.total }}</div>
+            <div class="stat-item">
+                <span class="stat-label">New (30 days):</span>
+                <strong>{{ complaints.new_30d }}</strong>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Users by Role -->
+    <div class="section-title">Users by Role</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role_stat in users.by_role %}
+                <tr>
+                    <td><strong>{{ role_stat.role }}</strong></td>
+                    <td>{{ role_stat.count }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Bookings by Status -->
+    <div class="section-title">Bookings by Status</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status_stat in bookings.by_status %}
+                <tr>
+                    <td>
+                        <span class="badge {% if status_stat.status == 'COMPLETED' %}badge-success{% elif status_stat.status == 'CONFIRMED' %}badge-info{% elif status_stat.status == 'CANCELED' %}badge-danger{% else %}badge-warning{% endif %}">
+                            {{ status_stat.status }}
+                        </span>
+                    </td>
+                    <td>{{ status_stat.count }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Complaints by Status -->
+    <div class="section-title">Complaints by Status</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status_stat in complaints.by_status %}
+                <tr>
+                    <td>
+                        <span class="badge {% if status_stat.status == 'RESOLVED' %}badge-success{% elif status_stat.status == 'DISMISSED' %}badge-danger{% elif status_stat.status == 'IN_REVIEW' %}badge-warning{% else %}badge-info{% endif %}">
+                            {{ status_stat.status }}
+                        </span>
+                    </td>
+                    <td>{{ status_stat.count }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Recent Users -->
+    <div class="section-title">Recent Users (Last 10)</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in recent_users %}
+                <tr>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.first_name }} {{ user.last_name }}</td>
+                    <td>
+                        <span class="badge {% if user.role == 'ADMIN' %}badge-danger{% elif user.role == 'PROVIDER' %}badge-info{% else %}badge-success{% endif %}">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                    <td>
+                        <span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                            {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No users found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Recent Services -->
+    <div class="section-title">Recent Services (Last 10)</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in recent_services %}
+                <tr>
+                    <td><strong>{{ service.title }}</strong></td>
+                    <td>{{ service.category.name|default:"Uncategorized" }}</td>
+                    <td>KES {{ service.price|floatformat:0 }}</td>
+                    <td>{{ service.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No services found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Recent Bookings -->
+    <div class="section-title">Recent Bookings (Last 10)</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Seeker</th>
+                    <th>Status</th>
+                    <th>Booking Date</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in recent_bookings %}
+                <tr>
+                    <td>{{ booking.service.title }}</td>
+                    <td>{{ booking.seeker.email }}</td>
+                    <td>
+                        <span class="badge {% if booking.status == 'COMPLETED' %}badge-success{% elif booking.status == 'CONFIRMED' %}badge-info{% elif booking.status == 'CANCELED' %}badge-danger{% else %}badge-warning{% endif %}">
+                            {{ booking.status }}
+                        </span>
+                    </td>
+                    <td>{{ booking.booking_date|date:"M d, Y H:i" }}</td>
+                    <td>{{ booking.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No bookings found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-top: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <p style="color: #666; margin: 0;">
+            <strong>Note:</strong> For full admin functionality including user management, service management, complaints handling, and detailed reports, 
+            access the <a href="/dashboard" target="_blank" style="color: #007bff;">Frontend Admin Dashboard</a> 
+            (requires Firebase authentication with ADMIN role).
+        </p>
+    </div>
+</div>
+{% endblock %}
+

@@ -11,15 +11,19 @@ import {
   ClockIcon,
   CheckBadgeIcon,
   EnvelopeIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
 import { bookingService } from '../services/bookingService';
+import { reviewService } from '../services/reviewService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import ReviewList from '../components/ReviewList';
+import StarRating from '../components/StarRating';
 import { ServiceCardSkeleton, BookingCardSkeleton, StatsCardSkeleton } from '../components/LoadingSkeleton';
 
 // Create Service Form Component
@@ -394,6 +398,7 @@ export default function ProviderDashboard() {
   const [myServices, setMyServices] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -409,7 +414,7 @@ export default function ProviderDashboard() {
   const [deleteCategoryId, setDeleteCategoryId] = useState(null);
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
   const [categoryLoading, setCategoryLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState('services'); // 'services' or 'categories'
+  const [activeSection, setActiveSection] = useState('services'); // 'services', 'categories', or 'reviews'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -433,6 +438,28 @@ export default function ProviderDashboard() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      if (activeSection === 'reviews' && myServices.length > 0) {
+        try {
+          const allReviews = [];
+          for (const service of myServices) {
+            try {
+              const serviceReviews = await reviewService.getServiceReviews(service.id);
+              allReviews.push(...serviceReviews.map(r => ({ ...r, serviceTitle: service.title, serviceId: service.id })));
+            } catch (err) {
+              console.error(`Failed to load reviews for service ${service.id}:`, err);
+            }
+          }
+          setReviews(allReviews);
+        } catch (err) {
+          console.error('Failed to load reviews:', err);
+        }
+      }
+    };
+    loadReviews();
+  }, [activeSection, myServices]);
 
   const handleServiceCreated = (newService) => {
     setMyServices([newService, ...myServices]);
@@ -677,7 +704,8 @@ export default function ProviderDashboard() {
           <nav className="flex -mb-px space-x-1">
             {[
               { id: 'services', label: 'Services', Icon: Cog6ToothIcon },
-              { id: 'categories', label: 'Categories', Icon: FolderIcon }
+              { id: 'categories', label: 'Categories', Icon: FolderIcon },
+              { id: 'reviews', label: 'Reviews', Icon: StarIcon }
             ].map((section) => (
               <button
                 key={section.id}
@@ -952,6 +980,52 @@ export default function ProviderDashboard() {
                   </tbody>
                 </table>
               </div>
+            </motion.div>
+          )}
+
+          {/* Reviews Section */}
+          {activeSection === 'reviews' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <h2 className="text-2xl font-bold text-white mb-4">Service Reviews</h2>
+              
+              {reviews.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <StarIcon className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                  <p className="text-lg">No reviews yet</p>
+                  <p className="text-sm mt-2">Reviews from seekers will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {myServices.map((service) => {
+                    const serviceReviews = reviews.filter(r => r.serviceId === service.id);
+                    if (serviceReviews.length === 0) return null;
+                    
+                    return (
+                      <div key={service.id} className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-semibold text-white">{service.title}</h3>
+                          <div className="flex items-center gap-2">
+                            {service.average_rating && (
+                              <>
+                                <StarRating rating={service.average_rating} readonly size="sm" />
+                                <span className="text-gray-300 text-sm">
+                                  ({service.review_count} {service.review_count === 1 ? 'review' : 'reviews'})
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <ReviewList reviews={serviceReviews} readonly />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
         </div>

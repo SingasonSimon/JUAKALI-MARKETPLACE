@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
-import { userService } from '../services/userService';
-import { bookingService } from '../services/bookingService';
-import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { djangoAdminService } from '../services/djangoAdminService';
+import { adminService } from '../services/adminService';
+import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import Pagination from '../components/Pagination';
 
-export default function Profile() {
-  const { dbUser, setDbUser } = useAuth();
+export default function AdminProfile() {
+  const { djangoAdminUser } = useOutletContext();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,28 +18,28 @@ export default function Profile() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formData, setFormData] = useState({
-    first_name: dbUser?.first_name || '',
-    last_name: dbUser?.last_name || '',
-    email: dbUser?.email || '',
+    first_name: djangoAdminUser?.first_name || '',
+    last_name: djangoAdminUser?.last_name || '',
+    email: djangoAdminUser?.email || '',
   });
 
-  // Update form data when dbUser changes
+  // Update form data when djangoAdminUser changes
   useEffect(() => {
-    if (dbUser) {
+    if (djangoAdminUser) {
       setFormData({
-        first_name: dbUser.first_name || '',
-        last_name: dbUser.last_name || '',
-        email: dbUser.email || '',
+        first_name: djangoAdminUser.first_name || '',
+        last_name: djangoAdminUser.last_name || '',
+        email: djangoAdminUser.email || '',
       });
     }
-  }, [dbUser]);
+  }, [djangoAdminUser]);
 
-  // Fetch booking history
+  // Fetch booking history (all bookings for admin)
   useEffect(() => {
     const fetchBookings = async () => {
       setBookingsLoading(true);
       try {
-        const data = await bookingService.getMyBookings();
+        const data = await djangoAdminService.getAllBookings();
         // Sort by booking date (newest first)
         const sortedBookings = data.sort((a, b) => 
           new Date(b.booking_date) - new Date(a.booking_date)
@@ -54,10 +53,10 @@ export default function Profile() {
       }
     };
 
-    if (dbUser) {
+    if (djangoAdminUser) {
       fetchBookings();
     }
-  }, [dbUser, showToast]);
+  }, [djangoAdminUser, showToast]);
 
   const handleChange = (e) => {
     setFormData({
@@ -70,15 +69,15 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true);
     try {
-      const updatedUser = await userService.updateProfile({
+      const updatedUser = await djangoAdminService.updateUser(djangoAdminUser.id, {
         first_name: formData.first_name,
         last_name: formData.last_name,
       });
       
-      // Update the auth context with new user data
-      setDbUser(updatedUser);
       showToast('Profile updated successfully!', 'success');
       setIsEditing(false);
+      // Reload page to get updated user data
+      window.location.reload();
     } catch (error) {
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to update profile';
       showToast(errorMessage, 'error');
@@ -98,15 +97,16 @@ export default function Profile() {
       <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-purple-900 rounded-lg p-8 mb-8 border border-gray-700">
         <div className="flex items-center gap-6">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
-            {dbUser?.first_name?.[0]?.toUpperCase() || 'U'}
+            {djangoAdminUser?.first_name?.[0]?.toUpperCase() || 'A'}
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              {dbUser?.first_name} {dbUser?.last_name}
+            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
+              {djangoAdminUser?.first_name} {djangoAdminUser?.last_name}
+              <ShieldCheckIcon className="w-6 h-6 text-blue-300" />
             </h1>
-            <p className="text-blue-200 mb-2">{dbUser?.email}</p>
-            <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white">
-              {dbUser?.role}
+            <p className="text-blue-200 mb-2">{djangoAdminUser?.email}</p>
+            <span className="inline-block px-3 py-1 bg-red-600 rounded-full text-sm font-semibold text-white">
+              ADMIN
             </span>
           </div>
         </div>
@@ -185,9 +185,9 @@ export default function Profile() {
                 onClick={() => {
                   setIsEditing(false);
                   setFormData({
-                    first_name: dbUser?.first_name || '',
-                    last_name: dbUser?.last_name || '',
-                    email: dbUser?.email || '',
+                    first_name: djangoAdminUser?.first_name || '',
+                    last_name: djangoAdminUser?.last_name || '',
+                    email: djangoAdminUser?.email || '',
                   });
                 }}
                 className="px-6 py-2"
@@ -203,38 +203,38 @@ export default function Profile() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   First Name
                 </label>
-                <p className="text-white text-lg">{dbUser?.first_name || 'N/A'}</p>
+                <p className="text-white text-lg">{djangoAdminUser?.first_name || 'N/A'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Last Name
                 </label>
-                <p className="text-white text-lg">{dbUser?.last_name || 'N/A'}</p>
+                <p className="text-white text-lg">{djangoAdminUser?.last_name || 'N/A'}</p>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
-              <p className="text-white text-lg">{dbUser?.email || 'N/A'}</p>
+              <p className="text-white text-lg">{djangoAdminUser?.email || 'N/A'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Role
               </label>
-              <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white">
-                {dbUser?.role || 'N/A'}
+              <span className="inline-block px-3 py-1 bg-red-600 rounded-full text-sm font-semibold text-white">
+                ADMIN
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Booking History Section */}
+      {/* All Bookings Section (Admin can see all bookings) */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mt-8">
         <div className="flex items-center gap-2 mb-6">
           <CalendarIcon className="w-6 h-6 text-blue-400" />
-          <h2 className="text-2xl font-bold text-white">Booking History</h2>
+          <h2 className="text-2xl font-bold text-white">All Bookings</h2>
           <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white">
             {bookings.length} {bookings.length === 1 ? 'booking' : 'bookings'}
           </span>
@@ -252,10 +252,7 @@ export default function Profile() {
           <div className="text-center py-12 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
             <CalendarIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
-            <p className="text-gray-400 text-sm">Your booking history will appear here once you make a booking.</p>
-            <Link to="/" className="inline-block mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-              Browse Services
-            </Link>
+            <p className="text-gray-400 text-sm">Booking history will appear here once users make bookings.</p>
           </div>
         ) : (
           <>
@@ -268,96 +265,98 @@ export default function Profile() {
 
                 return paginatedBookings.map((booking, index) => {
                   const bookingDate = new Date(booking.booking_date);
-              const statusColors = {
-                'PENDING': 'bg-yellow-900 text-yellow-300 border-yellow-700',
-                'CONFIRMED': 'bg-green-900 text-green-300 border-green-700',
-                'CANCELED': 'bg-red-900 text-red-300 border-red-700',
-                'COMPLETED': 'bg-blue-900 text-blue-300 border-blue-700',
-              };
+                  const statusColors = {
+                    'PENDING': 'bg-yellow-900 text-yellow-300 border-yellow-700',
+                    'CONFIRMED': 'bg-green-900 text-green-300 border-green-700',
+                    'CANCELED': 'bg-red-900 text-red-300 border-red-700',
+                    'COMPLETED': 'bg-blue-900 text-blue-300 border-blue-700',
+                  };
 
-              const statusIcons = {
-                'PENDING': ClockIcon,
-                'CONFIRMED': CheckCircleIcon,
-                'CANCELED': XCircleIcon,
-                'COMPLETED': CheckCircleIcon,
-              };
+                  const statusIcons = {
+                    'PENDING': ClockIcon,
+                    'CONFIRMED': CheckCircleIcon,
+                    'CANCELED': XCircleIcon,
+                    'COMPLETED': CheckCircleIcon,
+                  };
 
-              const StatusIcon = statusIcons[booking.status] || ClockIcon;
+                  const StatusIcon = statusIcons[booking.status] || ClockIcon;
 
-              return (
-                <motion.div
-                  key={booking.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-gray-700 border border-gray-600 rounded-lg p-5 hover:border-blue-500 transition-colors"
-                >
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <Link 
-                          to={`/services/${booking.service_details?.id}`}
-                          className="flex-1"
-                        >
-                          <h3 className="text-lg font-semibold text-white hover:text-blue-400 transition mb-1">
-                            {booking.service_details?.title || 'Service'}
-                          </h3>
-                        </Link>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${statusColors[booking.status] || 'bg-gray-600 text-gray-300 border-gray-500'}`}>
-                          <StatusIcon className="w-4 h-4" />
-                          {booking.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <CalendarIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                          <span>
-                            <span className="font-semibold">Date:</span>{' '}
-                            {bookingDate.toLocaleDateString('en-US', { 
-                              weekday: 'short', 
-                              year: 'numeric', 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <ClockIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                          <span>
-                            <span className="font-semibold">Time:</span>{' '}
-                            {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        {booking.service_details?.provider_details && (
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <span className="font-semibold">Provider:</span>{' '}
-                            {booking.service_details.provider_details.first_name}{' '}
-                            {booking.service_details.provider_details.last_name}
-                          </div>
-                        )}
-                        {booking.service_details?.price && (
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <span className="font-semibold">Price:</span>{' '}
-                            <span className="text-blue-400 font-bold">
-                              KES {parseFloat(booking.service_details.price).toLocaleString()}
+                  return (
+                    <motion.div
+                      key={booking.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-gray-700 border border-gray-600 rounded-lg p-5 hover:border-blue-500 transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="text-lg font-semibold text-white mb-1">
+                              {booking.service_details?.title || 'Service'}
+                            </h3>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${statusColors[booking.status] || 'bg-gray-600 text-gray-300 border-gray-500'}`}>
+                              <StatusIcon className="w-4 h-4" />
+                              {booking.status}
                             </span>
                           </div>
-                        )}
-                      </div>
 
-                      <div className="mt-3 text-xs text-gray-400">
-                        Booked on: {new Date(booking.created_at).toLocaleString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2 text-gray-300">
+                              <CalendarIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                              <span>
+                                <span className="font-semibold">Date:</span>{' '}
+                                {bookingDate.toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-300">
+                              <ClockIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                              <span>
+                                <span className="font-semibold">Time:</span>{' '}
+                                {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {booking.seeker_details && (
+                              <div className="flex items-center gap-2 text-gray-300">
+                                <span className="font-semibold">Seeker:</span>{' '}
+                                {booking.seeker_details.first_name}{' '}
+                                {booking.seeker_details.last_name} ({booking.seeker_details.email})
+                              </div>
+                            )}
+                            {booking.service_details?.provider_details && (
+                              <div className="flex items-center gap-2 text-gray-300">
+                                <span className="font-semibold">Provider:</span>{' '}
+                                {booking.service_details.provider_details.first_name}{' '}
+                                {booking.service_details.provider_details.last_name}
+                              </div>
+                            )}
+                            {booking.service_details?.price && (
+                              <div className="flex items-center gap-2 text-gray-300">
+                                <span className="font-semibold">Price:</span>{' '}
+                                <span className="text-blue-400 font-bold">
+                                  KES {parseFloat(booking.service_details.price).toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-3 text-xs text-gray-400">
+                            Booked on: {new Date(booking.created_at).toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </motion.div>
+                    </motion.div>
                   );
                 });
               })()}
@@ -373,7 +372,7 @@ export default function Profile() {
                 totalItems={bookings.length}
                 onItemsPerPageChange={(newItemsPerPage) => {
                   setItemsPerPage(newItemsPerPage);
-                  setCurrentPage(1); // Reset to first page when changing items per page
+                  setCurrentPage(1);
                 }}
               />
             )}

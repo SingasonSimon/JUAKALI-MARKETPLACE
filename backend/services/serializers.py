@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Service, Booking
+from .models import Category, Service, Booking, Review, Complaint
 from users.serializers import CustomUserSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -27,6 +27,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     provider_details = CustomUserSerializer(source='provider', read_only=True)
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
     category_details = CategorySerializer(source='category', read_only=True)
+    average_rating = serializers.ReadOnlyField()
+    review_count = serializers.ReadOnlyField()
 
     class Meta:
         model = Service
@@ -39,6 +41,8 @@ class ServiceSerializer(serializers.ModelSerializer):
             'provider_details',
             'category',
             'category_details',
+            'average_rating',
+            'review_count',
             'created_at',
         ]
         
@@ -96,4 +100,93 @@ class BookingSerializer(serializers.ModelSerializer):
         # Only validate on create (when instance is None)
         if self.instance is None and value.role != 'SEEKER':
             raise serializers.ValidationError("Only users with the 'SEEKER' role can create bookings.")
+        return value
+
+class ReviewSerializer(serializers.ModelSerializer):
+    seeker = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all())
+    seeker_details = CustomUserSerializer(source='seeker', read_only=True)
+    service_details = ServiceSerializer(source='service', read_only=True)
+
+    class Meta:
+        model = Review
+        fields = [
+            'id',
+            'service',
+            'service_details',
+            'seeker',
+            'seeker_details',
+            'rating',
+            'comment',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def validate_rating(self, value):
+        """Ensure rating is between 1 and 5."""
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
+    
+    def validate(self, data):
+        """Ensure seeker is creating the review and one review per service."""
+        request = self.context.get('request')
+        seeker = data.get('seeker') or (request.user if request else None)
+        service = data.get('service')
+        
+        if self.instance is None:  # Creating new review
+            if seeker and seeker.role != 'SEEKER':
+                raise serializers.ValidationError("Only seekers can create reviews.")
+            
+            if service and seeker:
+                # Check if review already exists
+                if Review.objects.filter(service=service, seeker=seeker).exists():
+                    raise serializers.ValidationError("You have already reviewed this service.")
+        
+        return data
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), required=False, allow_null=True)
+    booking = serializers.PrimaryKeyRelatedField(queryset=Booking.objects.all(), required=False, allow_null=True)
+    user_details = CustomUserSerializer(source='user', read_only=True)
+    service_details = ServiceSerializer(source='service', read_only=True)
+
+    class Meta:
+        model = Complaint
+        fields = [
+            'id',
+            'user',
+            'user_details',
+            'service',
+            'service_details',
+            'booking',
+            'complaint_type',
+            'description',
+            'status',
+            'admin_response',
+            'created_at',
+            'resolved_at',
+        ]
+        read_only_fields = ['resolved_at', 'created_at']
+    
+    def validate_status(self, value):
+        """Allow admin to update status, but restrict regular users."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user = request.user
+            # Only admins can update status
+            if user.role != 'ADMIN' and not (user.is_staff or user.is_superuser):
+                raise serializers.ValidationError("Only admins can update complaint status.")
+        return value
+    
+    def validate_admin_response(self, value):
+        """Allow admin to update admin_response, but restrict regular users."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user = request.user
+            # Only admins can update admin_response
+            if user.role != 'ADMIN' and not (user.is_staff or user.is_superuser):
+                raise serializers.ValidationError("Only admins can add admin responses.")
         return value

@@ -88,10 +88,18 @@ function ServiceCard({ service, index }) {
 
 export default function Home() {
   const { dbUser } = useAuth();
+  const navigate = useNavigate();
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (dbUser) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [dbUser, navigate]);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,6 +166,11 @@ export default function Home() {
     setCurrentPage(1);
   }, [debouncedSearchQuery, selectedCategory, priceRange]);
 
+  // Don't render homepage if user is logged in (will redirect)
+  if (dbUser) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section with Animation */}
@@ -165,14 +178,14 @@ export default function Home() {
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="bg-gradient-to-r from-blue-900 via-blue-800 to-purple-900 text-white py-24 border-b border-gray-700"
+        className="bg-gradient-to-r from-blue-900 via-blue-800 to-purple-900 text-white py-12 sm:py-16 md:py-20 lg:py-24 border-b border-gray-700"
       >
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.h1 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-6xl font-bold mb-6"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-5 md:mb-6 leading-tight"
           >
             Welcome to Juakali Marketplace
           </motion.h1>
@@ -180,7 +193,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-2xl mb-10 text-blue-200 max-w-2xl mx-auto"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 md:mb-10 text-blue-200 max-w-2xl mx-auto px-2 sm:px-0 leading-relaxed"
           >
             Connect with skilled service providers in your area. Find the perfect service for your needs.
           </motion.p>
@@ -189,17 +202,17 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="flex justify-center gap-4"
+              className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 px-4 sm:px-0"
             >
               <Link
                 to="/register"
-                className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-lg transition duration-200 shadow-lg hover:shadow-xl"
+                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
               >
                 Get Started
               </Link>
               <Link
                 to="/login"
-                className="px-10 py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-lg transition duration-200 shadow-lg hover:shadow-xl"
+                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
               >
                 Sign In
               </Link>
@@ -209,10 +222,11 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
+              className="flex justify-center px-4 sm:px-0"
             >
               <Link
                 to="/dashboard"
-                className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-lg transition duration-200 shadow-lg hover:shadow-xl"
+                className="w-full sm:w-auto inline-block px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
               >
                 Go to Dashboard
               </Link>

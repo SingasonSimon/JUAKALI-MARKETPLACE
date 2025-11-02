@@ -11,15 +11,18 @@ import {
   EnvelopeIcon,
   WrenchScrewdriverIcon,
   AcademicCapIcon,
-  XMarkIcon
+  XMarkIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
 import { categoryService } from '../services/categoryService';
+import { complaintService } from '../services/complaintService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import ComplaintForm from '../components/ComplaintForm';
 import { ServiceCardSkeleton, BookingCardSkeleton, StatsCardSkeleton } from '../components/LoadingSkeleton';
 import Pagination from '../components/Pagination';
 import { useDebounce } from '../hooks/useDebounce';
@@ -331,6 +334,7 @@ export default function SeekerDashboard() {
   const [allServices, setAllServices] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [myComplaints, setMyComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -348,6 +352,10 @@ export default function SeekerDashboard() {
   const [cancelBookingId, setCancelBookingId] = useState(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   
+  // Complaints states
+  const [showComplaintForm, setShowComplaintForm] = useState(false);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -358,14 +366,16 @@ export default function SeekerDashboard() {
       try {
         setLoading(true);
         setError(null);
-        const [servicesData, bookingsData, categoriesData] = await Promise.all([
+        const [servicesData, bookingsData, categoriesData, complaintsData] = await Promise.all([
           serviceService.getAllServices(),
           bookingService.getMyBookings(),
-          categoryService.getCategories()
+          categoryService.getCategories(),
+          complaintService.getAllComplaints().catch(() => []) // Don't fail if complaints fail
         ]);
         setAllServices(servicesData);
         setMyBookings(bookingsData);
         setCategories(categoriesData);
+        setMyComplaints(complaintsData || []);
       } catch (err) {
         setError("Failed to load dashboard data. Please try again.");
         console.error(err);
@@ -374,6 +384,52 @@ export default function SeekerDashboard() {
       }
     };
     loadDashboard();
+  }, []);
+
+  // Load complaints when form is shown or when component becomes visible
+  useEffect(() => {
+    if (showComplaintForm) {
+      const loadComplaints = async () => {
+        try {
+          setComplaintsLoading(true);
+          const complaintsData = await complaintService.getAllComplaints();
+          setMyComplaints(complaintsData || []);
+        } catch (err) {
+          console.error('Failed to load complaints:', err);
+        } finally {
+          setComplaintsLoading(false);
+        }
+      };
+      loadComplaints();
+    }
+  }, [showComplaintForm]);
+
+  // Refresh complaints periodically and when page becomes visible
+  useEffect(() => {
+    const refreshComplaints = async () => {
+      try {
+        const complaintsData = await complaintService.getAllComplaints();
+        setMyComplaints(complaintsData || []);
+      } catch (err) {
+        console.error('Failed to refresh complaints:', err);
+      }
+    };
+
+    // Refresh complaints every 30 seconds
+    const interval = setInterval(refreshComplaints, 30000);
+
+    // Refresh when page becomes visible (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshComplaints();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Filter services with debouncing
@@ -458,6 +514,36 @@ export default function SeekerDashboard() {
   const handleViewBookingDetails = (booking) => {
     setSelectedBooking(booking);
     setIsDetailsModalOpen(true);
+  };
+
+  const handleComplaintCreated = async (complaintData) => {
+    try {
+      const newComplaint = await complaintService.createComplaint(complaintData);
+      // Refresh all complaints to ensure we have the latest data
+      const refreshedComplaints = await complaintService.getAllComplaints().catch(() => myComplaints);
+      setMyComplaints(refreshedComplaints);
+      showToast('Complaint submitted successfully. We will review it soon.', 'success');
+      setShowComplaintForm(false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || error.message || 'Failed to submit complaint';
+      showToast(errorMsg, 'error');
+      throw error;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-900 text-yellow-300';
+      case 'IN_REVIEW':
+        return 'bg-blue-900 text-blue-300';
+      case 'RESOLVED':
+        return 'bg-green-900 text-green-300';
+      case 'DISMISSED':
+        return 'bg-gray-700 text-gray-300';
+      default:
+        return 'bg-gray-700 text-gray-300';
+    }
   };
 
   if (loading) {
@@ -729,6 +815,126 @@ export default function SeekerDashboard() {
               </motion.div>
             )}
         </motion.div>
+      </motion.div>
+
+      {/* Complaints Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+        className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl"
+      >
+        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <ExclamationTriangleIcon className="w-6 h-6" />
+            My Complaints
+            <span className="ml-2 px-3 py-1 bg-red-600 rounded-full text-sm font-semibold">
+              {myComplaints.length}
+            </span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const refreshedComplaints = await complaintService.getAllComplaints();
+                  setMyComplaints(refreshedComplaints || []);
+                  showToast('Complaints refreshed', 'success');
+                } catch (err) {
+                  console.error('Failed to refresh complaints:', err);
+                  showToast('Failed to refresh complaints', 'error');
+                }
+              }}
+              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition flex items-center gap-2"
+              title="Refresh complaints"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+            <LoadingButton
+              onClick={() => setShowComplaintForm(!showComplaintForm)}
+              className="px-4 py-2"
+            >
+              {showComplaintForm ? 'Cancel' : '+ File a Complaint'}
+            </LoadingButton>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {showComplaintForm ? (
+            <ComplaintForm
+              services={allServices}
+              bookings={myBookings}
+              onComplaintCreated={handleComplaintCreated}
+              onClose={() => setShowComplaintForm(false)}
+            />
+          ) : (
+            <div>
+              {myComplaints.length > 0 ? (
+                <div className="space-y-4">
+                  {myComplaints.map((complaint) => (
+                    <motion.div
+                      key={complaint.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:border-blue-500 transition"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(complaint.status)}`}>
+                              {complaint.status.replace('_', ' ')}
+                            </span>
+                            <span className="text-gray-400 text-sm">
+                              {complaint.complaint_type.replace('_', ' ')}
+                            </span>
+                            {complaint.service_details && (
+                              <span className="text-gray-400 text-sm">
+                                • {complaint.service_details.title}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-white mb-2">{complaint.description}</p>
+                          {complaint.admin_response && (
+                            <div className="mt-3 pt-3 border-t border-gray-600">
+                              <p className="text-sm font-semibold text-blue-400 mb-1">Admin Response:</p>
+                              <p className="text-gray-300 text-sm">{complaint.admin_response}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-gray-400 text-xs">
+                            {new Date(complaint.created_at).toLocaleDateString()}
+                          </p>
+                          {complaint.status === 'RESOLVED' && complaint.resolved_at && (
+                            <p className="text-gray-400 text-xs mt-1">
+                              Resolved: {new Date(complaint.resolved_at).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <ExclamationTriangleIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-300 mb-2 font-semibold text-lg">No complaints yet</p>
+                  <p className="text-gray-400 text-sm mb-4">
+                    If you encounter any issues, feel free to file a complaint
+                  </p>
+                  <LoadingButton
+                    onClick={() => setShowComplaintForm(true)}
+                    className="px-6 py-2"
+                  >
+                    File a Complaint
+                  </LoadingButton>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Booking Modal */}

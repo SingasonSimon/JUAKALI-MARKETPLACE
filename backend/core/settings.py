@@ -68,7 +68,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -153,6 +153,12 @@ print("✅ Firebase Admin SDK Initialized.")
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
+# Custom authentication backend to support email-based login
+AUTHENTICATION_BACKENDS = [
+    'users.backends.EmailBackend',  # Custom backend for email authentication
+    'django.contrib.auth.backends.ModelBackend',  # Fallback to default backend
+]
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'api.authentication.FirebaseAuthentication',
@@ -170,3 +176,31 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Session cookie settings
+SESSION_COOKIE_SAMESITE = 'Lax'  # Lax works for same-site requests (admin login on same domain)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # False is OK for localhost development
+SESSION_COOKIE_DOMAIN = None  # None means cookie is scoped to exact origin
+SESSION_COOKIE_PATH = '/'  # Cookie available for entire domain
+
+# CSRF cookie settings - critical for Django admin login
+CSRF_COOKIE_SAMESITE = 'Lax'  # Lax allows cookies for same-site POST requests (admin login)
+CSRF_COOKIE_HTTPONLY = False  # False allows JavaScript to read if needed (but Django admin doesn't need this)
+CSRF_COOKIE_SECURE = False  # False is OK for localhost development
+CSRF_COOKIE_DOMAIN = None  # None means cookie is scoped to exact origin
+CSRF_USE_SESSIONS = False  # Use cookie-based CSRF (default)
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+# For cross-origin requests from frontend (localhost:5173), we handle CSRF via token in header
+# For same-site admin login (localhost:8000), cookies work with Lax
+
+# Important: For cross-origin cookie access, we need to ensure cookies are sent
+# The frontend must use withCredentials: true (which we've set in djangoAdminService)
+# Note: Cookies set by localhost:8000 won't automatically be sent to localhost:5173
+# This is a browser security feature. We need to rely on withCredentials and CORS.

@@ -1,46 +1,57 @@
 from rest_framework import generics, permissions
-from .models import Service, Category, Booking
-from .serializers import ServiceSerializer, CategorySerializer, BookingSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
+from django.db.models import Q
+from .models import Service, Category, Booking, Review, Complaint
+from .serializers import ServiceSerializer, CategorySerializer, BookingSerializer, ReviewSerializer, ComplaintSerializer
 from .permissions import (
-    IsProviderOrReadOnly, 
+    IsProviderOrReadOnly,
     IsOwnerOrReadOnly,
     IsSeeker,
-    IsBookingOwnerOrProvider  
+    IsBookingOwnerOrProvider,
+    IsAdminOrOwnerOrReadOnly,
+    IsAdminOrProviderOrReadOnly,
+    IsAdminOrReviewOwnerOrReadOnly
 )
+from api.permissions import IsAdminUser
+from api.authentication import FirebaseAuthentication
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     """
     GET: Returns a list of all categories (public access).
-    POST: Creates a new category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
+    POST: Creates a new category (Provider or Admin only).
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
     
     def get_permissions(self):
         """
         - GET requests are public (AllowAny)
-        - POST requests require provider permission  # ADMIN FUNCTIONALITY DISABLED
+        - POST requests require provider or admin permission
         """
         if self.request.method == 'POST':
-            return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
+            return [permissions.IsAuthenticated(), IsAdminOrProviderOrReadOnly()]
         return [permissions.AllowAny()]
 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET: Returns a single category (public access).
-    PUT/PATCH: Updates a category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
-    DELETE: Deletes a category (Provider only).  # ADMIN FUNCTIONALITY DISABLED
+    PUT/PATCH: Updates a category (Provider or Admin).
+    DELETE: Deletes a category (Provider or Admin).
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
     
     def get_permissions(self):
         """
         - GET requests are public (AllowAny)
-        - PUT/PATCH/DELETE require provider permission  # ADMIN FUNCTIONALITY DISABLED
+        - PUT/PATCH/DELETE require provider or admin permission
         """
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [permissions.IsAuthenticated(), IsProviderOrReadOnly()]
+            return [permissions.IsAuthenticated(), IsAdminOrProviderOrReadOnly()]
         return [permissions.AllowAny()]
 
 class ServiceListCreateView(generics.ListCreateAPIView):
@@ -66,19 +77,20 @@ class ServiceListCreateView(generics.ListCreateAPIView):
 class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET: Returns a single service (public access).
-    PUT/PATCH: Updates a service (Owner only).
-    DELETE: Deletes a service (Owner only).
+    PUT/PATCH: Updates a service (Owner or Admin).
+    DELETE: Deletes a service (Owner or Admin).
     """
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
     
     def get_permissions(self):
         """
         - GET requests are public (AllowAny)
-        - PUT/PATCH/DELETE require IsOwnerOrReadOnly permission
+        - PUT/PATCH/DELETE require admin or owner permission
         """
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsOwnerOrReadOnly()]
+            return [IsAdminOrOwnerOrReadOnly()]
         return [permissions.AllowAny()]
     
 
@@ -104,13 +116,16 @@ class BookingListCreateView(generics.ListCreateAPIView):
         """
         This is the core logic:
         - Filter bookings based on the user's role.
+        - Admin can see all bookings.
         """
         user = self.request.user
-        if user.role == 'SEEKER':
+        if user.role == 'ADMIN':
+            return Booking.objects.all()
+        elif user.role == 'SEEKER':
             return Booking.objects.filter(seeker=user)
         elif user.role == 'PROVIDER':
             return Booking.objects.filter(service__provider=user)
-        return Booking.objects.none() # Users with other roles see nothing by default  # ADMIN FUNCTIONALITY DISABLED
+        return Booking.objects.none()
 
     def perform_create(self, serializer):
         serializer.save(seeker=self.request.user)
@@ -120,18 +135,21 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET, PUT, PATCH, DELETE a specific booking.
     - Only the Seeker who made the booking or the Provider
-      who owns the service can access it.
+      who owns the service can access it, or Admin.
     """
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsBookingOwnerOrProvider]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
 
     def get_queryset(self):
         """
         Ensure users can only access their own related bookings,
-        even in the detail view.
+        even in the detail view. Admin can access all bookings.
         """
         user = self.request.user
-        if user.role == 'SEEKER':
+        if user.role == 'ADMIN' or user.is_staff or user.is_superuser:
+            return Booking.objects.all()
+        elif user.role == 'SEEKER':
             return Booking.objects.filter(seeker=user)
         elif user.role == 'PROVIDER':
             return Booking.objects.filter(service__provider=user)
@@ -152,3 +170,128 @@ class ProviderServiceListView(generics.ListAPIView):
         if user.role == 'PROVIDER':
             return Service.objects.filter(provider=user)
         return Service.objects.none()
+
+class ReviewListCreateView(generics.ListCreateAPIView):
+    """
+    GET: List reviews for a service (public) or user's reviews (authenticated)
+    POST: Create review (seekers only, one per service)
+    """
+    serializer_class = ReviewSerializer
+    
+    def get_permissions(self):
+        """POST requires seeker, GET is public or authenticated."""
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated(), IsSeeker()]
+        return [permissions.AllowAny()]
+    
+    def get_queryset(self):
+        """Filter reviews based on query parameters."""
+        queryset = Review.objects.all()
+        service_id = self.request.query_params.get('service', None)
+        user = self.request.user
+        
+        if service_id:
+            queryset = queryset.filter(service_id=service_id)
+        elif user.is_authenticated and user.role == 'SEEKER':
+            # Return user's own reviews
+            queryset = queryset.filter(seeker=user)
+        
+        return queryset.order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        serializer.save(seeker=self.request.user)
+
+class ReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET: Get review details
+    PUT/PATCH: Update own review (seeker) or any review (admin)
+    DELETE: Delete own review (seeker) or any review (admin)
+    """
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAdminOrReviewOwnerOrReadOnly]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        """Admin sees all reviews, regular users see all (for GET)."""
+        user = self.request.user
+        # Admin can see all, others can see all (read-only)
+        return Review.objects.all()
+
+class ComplaintListCreateView(generics.ListCreateAPIView):
+    """
+    GET: List complaints (admin sees all, users see their own)
+    POST: Create complaint (authenticated users)
+    """
+    serializer_class = ComplaintSerializer
+    
+    def get_permissions(self):
+        """GET requires authentication, POST requires authentication."""
+        return [permissions.IsAuthenticated()]
+    
+    def get_queryset(self):
+        """Admin sees all, users see their own."""
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return Complaint.objects.all()
+        return Complaint.objects.filter(user=user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class ComplaintDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET: Get complaint details
+    PUT/PATCH: Update complaint (admin can update status and respond)
+    DELETE: Delete complaint (admin only)
+    """
+    queryset = Complaint.objects.all()
+    serializer_class = ComplaintSerializer
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_permissions(self):
+        """Admin can update/delete, users can only view their own."""
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [permissions.IsAuthenticated(), IsAdminUser()]
+        return [permissions.IsAuthenticated()]
+    
+    def get_queryset(self):
+        """Admin sees all, users see their own."""
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return Complaint.objects.all()
+        return Complaint.objects.filter(user=user)
+    
+    def update(self, request, *args, **kwargs):
+        """Handle complaint updates, including resolving."""
+        instance = self.get_object()
+        
+        # Get the status before update
+        old_status = instance.status
+        
+        # Perform the update with request context
+        serializer = self.get_serializer(
+            instance, 
+            data=request.data, 
+            partial=kwargs.get('partial', False),
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # Refresh instance to get updated data
+        instance.refresh_from_db()
+        
+        # Set resolved_at if status is changed to RESOLVED
+        if old_status != 'RESOLVED' and instance.status == 'RESOLVED':
+            from django.utils import timezone
+            instance.resolved_at = timezone.now()
+            instance.save()
+        # Clear resolved_at if status is changed away from RESOLVED
+        elif old_status == 'RESOLVED' and instance.status != 'RESOLVED':
+            instance.resolved_at = None
+            instance.save()
+        
+        # Return updated response
+        serializer = self.get_serializer(instance, context={'request': request})
+        return Response(serializer.data)
