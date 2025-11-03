@@ -12,7 +12,8 @@ import {
   WrenchScrewdriverIcon,
   AcademicCapIcon,
   XMarkIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
@@ -809,7 +810,9 @@ export default function SeekerDashboard() {
                 animate={{ opacity: 1 }}
                 className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
               >
-                <div className="text-6xl mb-4">🔍</div>
+                <div className="flex justify-center mb-4">
+                  <MagnifyingGlassIcon className="w-16 h-16 text-gray-400" />
+                </div>
                 <p className="text-gray-300 text-lg mb-2 font-semibold">No services found</p>
                 <p className="text-gray-300 text-sm">Try adjusting your search or filters</p>
               </motion.div>

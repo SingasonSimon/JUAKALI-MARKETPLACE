@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { RocketLaunchIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -99,8 +100,8 @@ export default function Register() {
         transition={{ delay: 0.1 }}
         className="text-center mb-8"
       >
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl">
-          🚀
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <RocketLaunchIcon className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-white mb-2">
           Create Your Account
