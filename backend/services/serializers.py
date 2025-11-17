@@ -85,6 +85,32 @@ class PaymentSerializer(serializers.ModelSerializer):
             data['amount'] = booking.service.price
         
         return data
+    
+    def create(self, validated_data):
+        """Create payment and extract card details from card_number if provided."""
+        # Remove card_number from validated_data as it's not a model field
+        card_number = validated_data.pop('card_number', None)
+        
+        # Create the payment instance
+        payment = super().create(validated_data)
+        
+        # Process card_number if provided (this will be handled in the view, but we can set defaults here)
+        if card_number:
+            # Extract last 4 digits
+            payment.card_last4 = card_number[-4:] if len(card_number) >= 4 else '0000'
+            # Determine card brand from first digit
+            first_digit = card_number[0] if card_number else '4'
+            if first_digit == '4':
+                payment.card_brand = 'Visa'
+            elif first_digit == '5':
+                payment.card_brand = 'Mastercard'
+            elif first_digit == '3':
+                payment.card_brand = 'American Express'
+            else:
+                payment.card_brand = 'Unknown'
+            payment.save()
+        
+        return payment
 
 class BookingSerializer(serializers.ModelSerializer):
     seeker = serializers.HiddenField(default=serializers.CurrentUserDefault())
