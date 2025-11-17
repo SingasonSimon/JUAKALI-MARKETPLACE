@@ -337,14 +337,24 @@ function ServiceCard({ service, onEdit, onDelete }) {
 function BookingCard({ booking, onUpdateStatus }) {
   const bookingDate = new Date(booking.booking_date);
   const statusColors = {
-    'PENDING': 'bg-yellow-900 text-yellow-300',
+    'PENDING_ADMIN_APPROVAL': 'bg-orange-900 text-orange-300',
+    'ADMIN_APPROVED': 'bg-blue-900 text-blue-300',
     'CONFIRMED': 'bg-green-900 text-green-300',
     'CANCELED': 'bg-red-900 text-red-300',
     'COMPLETED': 'bg-blue-900 text-blue-300',
   };
 
-  const canConfirm = booking.status === 'PENDING';
+  const statusLabels = {
+    'PENDING_ADMIN_APPROVAL': 'Pending Admin Approval',
+    'ADMIN_APPROVED': 'Admin Approved',
+    'CONFIRMED': 'Confirmed',
+    'CANCELED': 'Canceled',
+    'COMPLETED': 'Completed',
+  };
+
+  const canConfirm = booking.status === 'ADMIN_APPROVED';
   const canComplete = booking.status === 'CONFIRMED';
+  const awaitingAdmin = booking.status === 'PENDING_ADMIN_APPROVAL';
 
   return (
     <motion.div
@@ -359,7 +369,7 @@ function BookingCard({ booking, onUpdateStatus }) {
           </p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[booking.status] || 'bg-gray-700'}`}>
-          {booking.status}
+          {statusLabels[booking.status] || booking.status}
         </span>
       </div>
       
@@ -368,6 +378,18 @@ function BookingCard({ booking, onUpdateStatus }) {
         <p><span className="font-semibold text-gray-300">Time:</span> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         <p><span className="font-semibold text-gray-300">Booked on:</span> {new Date(booking.created_at).toLocaleDateString()}</p>
       </div>
+
+      {awaitingAdmin && (
+        <div className="p-3 mb-3 bg-orange-900/30 border border-orange-700 rounded-lg text-sm text-orange-100">
+          Waiting for admin approval. You will be notified once this booking is ready for confirmation.
+        </div>
+      )}
+
+      {booking.status === 'CONFIRMED' && !booking.is_paid && (
+        <div className="p-3 mb-3 bg-yellow-900/30 border border-yellow-700 rounded-lg text-sm text-yellow-100">
+          Booking confirmed. Awaiting seeker payment.
+        </div>
+      )}
 
       {canConfirm && (
         <LoadingButton
@@ -563,10 +585,13 @@ export default function ProviderDashboard() {
   };
 
   // Calculate stats
+  const awaitingApprovalBookings = myBookings.filter(b => b.status === 'PENDING_ADMIN_APPROVAL');
+  const actionableBookings = myBookings.filter(b => b.status !== 'PENDING_ADMIN_APPROVAL');
   const stats = {
     totalServices: myServices.length,
-    totalBookings: myBookings.length,
-    pendingBookings: myBookings.filter(b => b.status === 'PENDING').length,
+    totalBookings: actionableBookings.length,
+    awaitingApproval: awaitingApprovalBookings.length,
+    adminApproved: myBookings.filter(b => b.status === 'ADMIN_APPROVED').length,
     confirmedBookings: myBookings.filter(b => b.status === 'CONFIRMED').length,
   };
 
@@ -609,7 +634,7 @@ export default function ProviderDashboard() {
   }
 
   // Sort bookings by date (most recent first)
-  const sortedBookings = [...myBookings].sort((a, b) => 
+  const sortedBookings = [...actionableBookings].sort((a, b) => 
     new Date(b.created_at) - new Date(a.created_at)
   );
 
@@ -672,12 +697,13 @@ export default function ProviderDashboard() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6"
       >
         {[
           { label: 'Total Services', value: stats.totalServices, Icon: WrenchScrewdriverIcon, color: 'text-blue-400', bg: 'bg-blue-900 bg-opacity-20' },
-          { label: 'Total Bookings', value: stats.totalBookings, Icon: CalendarIcon, color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
-          { label: 'Pending', value: stats.pendingBookings, Icon: ClockIcon, color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
+          { label: 'Actionable Bookings', value: stats.totalBookings, Icon: CalendarIcon, color: 'text-purple-400', bg: 'bg-purple-900 bg-opacity-20' },
+          { label: 'Awaiting Admin', value: stats.awaitingApproval, Icon: ClockIcon, color: 'text-yellow-400', bg: 'bg-yellow-900 bg-opacity-20' },
+          { label: 'Admin Approved', value: stats.adminApproved, Icon: CheckBadgeIcon, color: 'text-blue-300', bg: 'bg-blue-900 bg-opacity-20' },
           { label: 'Confirmed', value: stats.confirmedBookings, Icon: CheckCircleIcon, color: 'text-green-400', bg: 'bg-green-900 bg-opacity-20' },
         ].map((stat, index) => {
           const IconComponent = stat.Icon;
@@ -815,6 +841,12 @@ export default function ProviderDashboard() {
                       {sortedBookings.length}
                     </span>
                   </h2>
+                  {awaitingApprovalBookings.length > 0 && (
+                    <div className="mb-4 p-3 bg-orange-900/20 border border-orange-700 rounded-lg text-sm text-orange-100">
+                      {awaitingApprovalBookings.length} booking{awaitingApprovalBookings.length !== 1 ? 's' : ''} waiting for admin approval.
+                      We'll notify you once they're ready to confirm.
+                    </div>
+                  )}
             <div className="space-y-4 flex-1 overflow-y-auto hide-scrollbar">
               {sortedBookings.length > 0 ? (
                 sortedBookings.map((booking, index) => (

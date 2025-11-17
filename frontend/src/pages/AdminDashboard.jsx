@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -78,6 +78,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   const [editingBooking, setEditingBooking] = useState(null);
   const [deleteBookingId, setDeleteBookingId] = useState(null);
   const [bookingFormData, setBookingFormData] = useState({ status: '' });
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
   const [reviews, setReviews] = useState([]);
   const [editingReview, setEditingReview] = useState(null);
   const [deleteReviewId, setDeleteReviewId] = useState(null);
@@ -306,6 +307,28 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     }
   };
 
+  const updateBookingStatus = async (bookingId, status, successMessage = 'Booking updated successfully') => {
+    const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
+    try {
+      const updated = await adminApi.updateBooking(bookingId, { status });
+      setBookings(bookings.map(b => b.id === updated.id ? updated : b));
+      showToast(successMessage, 'success');
+      return updated;
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to update booking';
+      showToast(errorMsg, 'error');
+      throw err;
+    }
+  };
+
+  const handleApproveBooking = async (bookingId) => {
+    await updateBookingStatus(
+      bookingId,
+      'ADMIN_APPROVED',
+      'Booking approved. Provider can now confirm.'
+    );
+  };
+
   const handleEditBooking = (booking) => {
     setEditingBooking(booking);
     setBookingFormData({ status: booking.status });
@@ -315,16 +338,12 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingBooking) return;
 
-    const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
-      const updated = await adminApi.updateBooking(editingBooking.id, bookingFormData);
-      setBookings(bookings.map(b => b.id === updated.id ? updated : b));
-      showToast('Booking updated successfully', 'success');
+      await updateBookingStatus(editingBooking.id, bookingFormData.status);
       setEditingBooking(null);
       setBookingFormData({ status: '' });
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.message || 'Failed to update booking';
-      showToast(errorMsg, 'error');
+      // errors handled in helper
     }
   };
 
@@ -508,6 +527,44 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     totalServices: services.length,
     totalBookings: bookings.length,
   };
+
+  const bookingStatusCounts = useMemo(() => ({
+    pendingAdmin: bookings.filter(b => b.status === 'PENDING_ADMIN_APPROVAL').length,
+    adminApproved: bookings.filter(b => b.status === 'ADMIN_APPROVED').length,
+    confirmed: bookings.filter(b => b.status === 'CONFIRMED').length,
+    completed: bookings.filter(b => b.status === 'COMPLETED').length,
+    canceled: bookings.filter(b => b.status === 'CANCELED').length,
+  }), [bookings]);
+
+  const statusLabels = {
+    PENDING_ADMIN_APPROVAL: 'Pending Admin Approval',
+    ADMIN_APPROVED: 'Admin Approved',
+    CONFIRMED: 'Confirmed',
+    CANCELED: 'Canceled',
+    COMPLETED: 'Completed',
+  };
+
+  const statusColors = {
+    PENDING_ADMIN_APPROVAL: 'bg-orange-900 text-orange-300',
+    ADMIN_APPROVED: 'bg-blue-900 text-blue-300',
+    CONFIRMED: 'bg-green-900 text-green-300',
+    CANCELED: 'bg-red-900 text-red-300',
+    COMPLETED: 'bg-purple-900 text-purple-300',
+  };
+
+  const bookingStatusOptions = [
+    { value: 'ALL', label: 'All statuses' },
+    { value: 'PENDING_ADMIN_APPROVAL', label: 'Pending Admin Approval' },
+    { value: 'ADMIN_APPROVED', label: 'Admin Approved' },
+    { value: 'CONFIRMED', label: 'Confirmed' },
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'CANCELED', label: 'Canceled' },
+  ];
+
+  const filteredBookings = useMemo(() => {
+    if (bookingStatusFilter === 'ALL') return bookings;
+    return bookings.filter(b => b.status === bookingStatusFilter);
+  }, [bookings, bookingStatusFilter]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -1275,6 +1332,48 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                 <CalendarIcon className="w-6 h-6" />
                 All Bookings
               </h2>
+
+              {/* Booking status overview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                {[
+                  { label: 'Pending Admin', value: bookingStatusCounts.pendingAdmin, color: 'bg-orange-500/20 text-orange-200', hint: 'Waiting for your approval' },
+                  { label: 'Admin Approved', value: bookingStatusCounts.adminApproved, color: 'bg-blue-500/20 text-blue-200', hint: 'Ready for provider confirmation' },
+                  { label: 'Confirmed', value: bookingStatusCounts.confirmed, color: 'bg-green-500/20 text-green-200', hint: 'Provider confirmed' },
+                  { label: 'Completed', value: bookingStatusCounts.completed, color: 'bg-purple-500/20 text-purple-200', hint: 'Finished jobs' },
+                  { label: 'Canceled', value: bookingStatusCounts.canceled, color: 'bg-red-500/20 text-red-200', hint: 'Closed or rejected' },
+                ].map((card) => (
+                  <div key={card.label} className={`p-4 rounded-lg border border-gray-700 ${card.color}`}>
+                    <p className="text-sm uppercase tracking-wide text-gray-300">{card.label}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
+                    <p className="text-xs text-gray-200 mt-1">{card.hint}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                <p className="text-gray-300 text-sm">
+                  Showing <span className="text-white font-semibold">{filteredBookings.length}</span> of{' '}
+                  <span className="text-white font-semibold">{bookings.length}</span> bookings
+                </p>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="bookingStatusFilter" className="text-sm text-gray-300">
+                    Filter by status:
+                  </label>
+                  <select
+                    id="bookingStatusFilter"
+                    value={bookingStatusFilter}
+                    onChange={(e) => setBookingStatusFilter(e.target.value)}
+                    className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-blue-500 text-sm"
+                  >
+                    {bookingStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700">
@@ -1288,27 +1387,22 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {bookings.length === 0 ? (
+                    {filteredBookings.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="px-6 py-8 text-center text-gray-400">
                           No bookings found
                         </td>
                       </tr>
                     ) : (
-                      bookings.map((booking) => (
+                      filteredBookings.map((booking) => (
                         <tr key={booking.id} className="hover:bg-gray-700 transition-colors">
                           <td className={tdStyle}>{booking.service_details?.title || 'N/A'}</td>
                           <td className={tdStyle}>
                             {booking.seeker_details?.email || 'N/A'}
                           </td>
                           <td className={tdStyle}>
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              booking.status === 'CONFIRMED' ? 'bg-green-900 text-green-300' :
-                              booking.status === 'COMPLETED' ? 'bg-blue-900 text-blue-300' :
-                              booking.status === 'CANCELED' ? 'bg-red-900 text-red-300' :
-                              'bg-yellow-900 text-yellow-300'
-                            }`}>
-                              {booking.status}
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColors[booking.status] || 'bg-gray-600'}`}>
+                              {statusLabels[booking.status] || booking.status}
                             </span>
                           </td>
                           <td className={tdStyle}>
@@ -1318,7 +1412,15 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                             {booking.created_at ? new Date(booking.created_at).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className={tdStyle}>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              {booking.status === 'PENDING_ADMIN_APPROVAL' && (
+                                <LoadingButton
+                                  onClick={() => handleApproveBooking(booking.id)}
+                                  className="px-3 py-1 text-xs"
+                                >
+                                  Approve
+                                </LoadingButton>
+                              )}
                               <button
                                 onClick={() => handleEditBooking(booking)}
                                 className="p-2 text-blue-400 hover:text-blue-300 transition"
@@ -1369,10 +1471,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         onChange={(e) => setBookingFormData({ status: e.target.value })}
                         className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
                       >
-                        <option value="PENDING">Pending</option>
-                        <option value="CONFIRMED">Confirmed</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="CANCELED">Canceled</option>
+                        {bookingStatusOptions
+                          .filter(option => option.value !== 'ALL')
+                          .map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div className="flex gap-2">

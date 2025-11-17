@@ -66,7 +66,7 @@ const activateUser = async (userId) => {
 };
 
 /**
- * Get all bookings (admin only)
+ * Booking management helpers (admin only)
  */
 const getAllBookings = async () => {
   try {
@@ -74,6 +74,35 @@ const getAllBookings = async () => {
     return data;
   } catch (error) {
     console.error("Error fetching bookings:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+const getBooking = async (bookingId) => {
+  try {
+    const { data } = await apiClient.get(`/bookings/${bookingId}/`);
+    return data;
+  } catch (error) {
+    console.error("Error fetching booking:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+const updateBooking = async (bookingId, bookingData) => {
+  try {
+    const { data } = await apiClient.patch(`/bookings/${bookingId}/`, bookingData);
+    return data;
+  } catch (error) {
+    console.error("Error updating booking:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+const deleteBooking = async (bookingId) => {
+  try {
+    await apiClient.delete(`/bookings/${bookingId}/`);
+  } catch (error) {
+    console.error("Error deleting booking:", error.response?.data || error.message);
     throw error;
   }
 };
@@ -176,6 +205,9 @@ export const adminService = {
   deleteUser,
   activateUser,
   getAllBookings,
+  getBooking,
+  updateBooking,
+  deleteBooking,
   updateService,
   deleteService,
   getAnalytics,
