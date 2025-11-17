@@ -49,6 +49,40 @@ def send_email_notification(user, subject, template_name, context):
         return False
 
 
+def send_booking_admin_approved_email(booking):
+    """Send email when a booking is approved by admin."""
+    seeker = booking.seeker
+    provider = booking.service.provider
+    
+    # Email to seeker
+    send_email_notification(
+        user=seeker,
+        subject=f'Booking Approved: {booking.service.title}',
+        template_name='booking_confirmed_seeker',  # Reuse template for now
+        context={
+            'booking': booking,
+            'service': booking.service,
+            'provider': provider,
+            'seeker': seeker,
+            'message': 'Your booking has been approved by admin and is waiting for provider confirmation.',
+        }
+    )
+    
+    # Email to provider
+    send_email_notification(
+        user=provider,
+        subject=f'New Booking Approved: {booking.service.title}',
+        template_name='booking_confirmed_provider',  # Reuse template for now
+        context={
+            'booking': booking,
+            'service': booking.service,
+            'provider': provider,
+            'seeker': seeker,
+            'message': 'A booking has been approved by admin. Please confirm it.',
+        }
+    )
+
+
 def send_booking_confirmation_email(booking):
     """Send email when a booking is confirmed."""
     seeker = booking.seeker

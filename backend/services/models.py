@@ -41,7 +41,8 @@ class Service(models.Model):
     
 class Booking(models.Model):
     class BookingStatus(models.TextChoices):
-        PENDING = "PENDING", "Pending"
+        PENDING_ADMIN_APPROVAL = "PENDING_ADMIN_APPROVAL", "Pending Admin Approval"
+        ADMIN_APPROVED = "ADMIN_APPROVED", "Admin Approved"
         CONFIRMED = "CONFIRMED", "Confirmed"
         CANCELED = "CANCELED", "Canceled"
         COMPLETED = "COMPLETED", "Completed"
@@ -56,7 +57,7 @@ class Booking(models.Model):
     status = models.CharField(
         max_length=50,
         choices=BookingStatus.choices,
-        default=BookingStatus.PENDING
+        default=BookingStatus.PENDING_ADMIN_APPROVAL
     )
     booking_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -68,6 +69,53 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking for {self.service.title} by {self.seeker.email} on {self.booking_date}"
+    
+    @property
+    def is_paid(self):
+        """Check if payment has been completed for this booking."""
+        return hasattr(self, 'payment') and self.payment.status == 'COMPLETED'
+
+
+class Payment(models.Model):
+    class PaymentStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
+        REFUNDED = "REFUNDED", "Refunded"
+    
+    class PaymentMethod(models.TextChoices):
+        CARD = "CARD", "Card"
+        MOBILE_MONEY = "MOBILE_MONEY", "Mobile Money"
+        BANK_TRANSFER = "BANK_TRANSFER", "Bank Transfer"
+    
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='payment'
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=50,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CARD
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING
+    )
+    # Card payment details (dummy but functional)
+    card_last4 = models.CharField(max_length=4, blank=True, null=True)
+    card_brand = models.CharField(max_length=50, blank=True, null=True)  # e.g., "Visa", "Mastercard"
+    transaction_id = models.CharField(max_length=255, blank=True, null=True)  # Dummy transaction ID
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Payment for Booking #{self.booking.id} - {self.status} - {self.amount}"
 
 class Review(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='reviews')

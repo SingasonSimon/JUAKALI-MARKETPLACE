@@ -34,4 +34,10 @@ urlpatterns = [
     
     # /api/complaints/<pk>/
     path('complaints/<int:pk>/', views.ComplaintDetailView.as_view(), name='complaint-detail'),
+    
+    # /api/payments/
+    path('payments/', views.PaymentCreateView.as_view(), name='payment-create'),
+    
+    # /api/payments/<pk>/
+    path('payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment-detail'),
 ]

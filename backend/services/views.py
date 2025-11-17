@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from django.db.models import Q
-from .models import Service, Category, Booking, Review, Complaint
-from .serializers import ServiceSerializer, CategorySerializer, BookingSerializer, ReviewSerializer, ComplaintSerializer
+from .models import Service, Category, Booking, Review, Complaint, Payment
+from .serializers import ServiceSerializer, CategorySerializer, BookingSerializer, ReviewSerializer, ComplaintSerializer, PaymentSerializer
 from .permissions import (
     IsProviderOrReadOnly,
     IsOwnerOrReadOnly,
@@ -17,6 +17,7 @@ from .permissions import (
 from api.permissions import IsAdminUser
 from api.authentication import FirebaseAuthentication
 from core.email_utils import (
+    send_booking_admin_approved_email,
     send_booking_confirmation_email,
     send_booking_completed_email,
     send_booking_canceled_email,
@@ -136,9 +137,8 @@ class BookingListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         booking = serializer.save(seeker=self.request.user)
-        # If booking is created with CONFIRMED status, send confirmation email
-        if booking.status == 'CONFIRMED':
-            send_booking_confirmation_email(booking)
+        # Booking is created with PENDING_ADMIN_APPROVAL status by default
+        # Admin will need to approve it before provider can confirm
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -169,6 +169,24 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
         """Handle booking updates and send email notifications."""
         instance = self.get_object()
         old_status = instance.status
+        user = request.user
+        
+        # Validate status transitions based on user role
+        new_status = request.data.get('status')
+        if new_status:
+            # Admin can approve bookings
+            if new_status == 'ADMIN_APPROVED' and user.role != 'ADMIN':
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only admins can approve bookings.")
+            
+            # Provider can only confirm ADMIN_APPROVED bookings
+            if new_status == 'CONFIRMED':
+                if user.role == 'PROVIDER' and old_status != 'ADMIN_APPROVED':
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Booking must be approved by admin before provider can confirm.")
+                if user.role != 'PROVIDER' and user.role != 'ADMIN':
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Only providers can confirm bookings.")
         
         # Perform the update
         response = super().update(request, *args, **kwargs)
@@ -179,7 +197,10 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
         
         # Send email notifications based on status changes
         if old_status != new_status:
-            if new_status == 'CONFIRMED':
+            if new_status == 'ADMIN_APPROVED':
+                # Notify provider that booking is approved and ready for confirmation
+                send_booking_admin_approved_email(instance)
+            elif new_status == 'CONFIRMED':
                 send_booking_confirmation_email(instance)
             elif new_status == 'COMPLETED':
                 send_booking_completed_email(instance)
@@ -339,3 +360,84 @@ class ComplaintDetailView(generics.RetrieveUpdateDestroyAPIView):
         # Return updated response
         serializer = self.get_serializer(instance, context={'request': request})
         return Response(serializer.data)
+
+
+class PaymentCreateView(generics.CreateAPIView):
+    """
+    POST: Create a payment for a booking (dummy card payment).
+    Only works for CONFIRMED bookings.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def perform_create(self, serializer):
+        booking_id = self.request.data.get('booking')
+        booking = Booking.objects.get(id=booking_id)
+        
+        # Only allow payment for CONFIRMED bookings
+        if booking.status != 'CONFIRMED':
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Payment can only be processed for confirmed bookings.")
+        
+        # Check if payment already exists
+        if hasattr(booking, 'payment'):
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Payment already exists for this booking.")
+        
+        # Only seeker can create payment for their booking
+        if booking.seeker != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only pay for your own bookings.")
+        
+        # Create payment with dummy transaction processing
+        payment = serializer.save(booking=booking)
+        
+        # Simulate card payment processing (dummy but functional)
+        import random
+        import string
+        from django.utils import timezone
+        
+        # Generate dummy transaction ID
+        payment.transaction_id = f"TXN{''.join(random.choices(string.ascii_uppercase + string.digits, k=12))}"
+        
+        # Extract card info from request (last 4 digits and brand)
+        card_number = self.request.data.get('card_number', '')
+        if card_number:
+            payment.card_last4 = card_number[-4:] if len(card_number) >= 4 else '0000'
+            # Determine card brand from first digit
+            first_digit = card_number[0] if card_number else '4'
+            if first_digit == '4':
+                payment.card_brand = 'Visa'
+            elif first_digit == '5':
+                payment.card_brand = 'Mastercard'
+            elif first_digit == '3':
+                payment.card_brand = 'American Express'
+            else:
+                payment.card_brand = 'Unknown'
+        
+        # Simulate payment processing (always succeeds in dummy mode)
+        payment.status = 'COMPLETED'
+        payment.completed_at = timezone.now()
+        payment.save()
+        
+        return payment
+
+
+class PaymentDetailView(generics.RetrieveAPIView):
+    """
+    GET: Retrieve payment details for a booking.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return Payment.objects.all()
+        elif user.role == 'SEEKER':
+            return Payment.objects.filter(booking__seeker=user)
+        elif user.role == 'PROVIDER':
+            return Payment.objects.filter(booking__service__provider=user)
+        return Payment.objects.none()

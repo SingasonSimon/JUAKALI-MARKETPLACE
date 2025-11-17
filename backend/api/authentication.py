@@ -9,6 +9,10 @@ from users.models import CustomUser
 class FirebaseAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
+        # Check if Firebase is initialized
+        if not getattr(settings, 'FIREBASE_INITIALIZED', False):
+            return None  # Firebase not initialized, let SessionAuthentication try
+
         auth_header = request.headers.get('Authorization')
 
         if not auth_header:

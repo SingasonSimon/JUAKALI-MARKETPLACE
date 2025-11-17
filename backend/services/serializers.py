@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Service, Booking, Review, Complaint
+from .models import Category, Service, Booking, Review, Complaint, Payment
 from users.serializers import CustomUserSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -54,6 +54,38 @@ class ServiceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Only users with the 'PROVIDER' role can create services.")
         return value
     
+class PaymentSerializer(serializers.ModelSerializer):
+    card_number = serializers.CharField(write_only=True, required=False, help_text="Card number (last 4 digits will be stored)")
+    
+    class Meta:
+        model = Payment
+        fields = [
+            'id',
+            'booking',
+            'amount',
+            'payment_method',
+            'status',
+            'card_number',
+            'card_last4',
+            'card_brand',
+            'transaction_id',
+            'created_at',
+            'completed_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'completed_at', 'transaction_id', 'card_last4', 'card_brand', 'status']
+    
+    def validate(self, data):
+        """Validate payment data."""
+        booking = data.get('booking')
+        if booking and booking.status != 'CONFIRMED':
+            raise serializers.ValidationError("Payment can only be processed for confirmed bookings.")
+        
+        # Set amount from booking service price if not provided
+        if not data.get('amount') and booking:
+            data['amount'] = booking.service.price
+        
+        return data
+
 class BookingSerializer(serializers.ModelSerializer):
     seeker = serializers.HiddenField(default=serializers.CurrentUserDefault())
     service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all())
@@ -61,6 +93,8 @@ class BookingSerializer(serializers.ModelSerializer):
     # Read-only fields for detail
     service_details = ServiceSerializer(source='service', read_only=True)
     seeker_details = CustomUserSerializer(source='seeker', read_only=True)
+    payment = PaymentSerializer(read_only=True)
+    is_paid = serializers.ReadOnlyField()
 
     class Meta:
         model = Booking
@@ -72,6 +106,8 @@ class BookingSerializer(serializers.ModelSerializer):
             'booking_date',
             'service_details',
             'seeker_details',
+            'payment',
+            'is_paid',
             'created_at',
         ]
         

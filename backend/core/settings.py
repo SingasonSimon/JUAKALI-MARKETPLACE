@@ -140,20 +140,31 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #The path to the service account key file
-SERVICE_ACCOUNT_KEY_PATH = os.path.join(BASE_DIR, 'core', 'firebase-service-account.json')
+# Allow override via environment variable
+SERVICE_ACCOUNT_KEY_PATH = os.environ.get(
+    'FIREBASE_SERVICE_ACCOUNT_KEY_PATH',
+    os.path.join(BASE_DIR, 'core', 'firebase-service-account.json')
+)
 
-# Check if the file exists before initializing
-if not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
-    raise FileNotFoundError(
-        f"Firebase service account key not found at {SERVICE_ACCOUNT_KEY_PATH}. "
-        "Please download it from the Firebase console and place it there."
-    )
-
-# Initialize Firebase
-cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
-firebase_admin.initialize_app(cred)
-
-print("✅ Firebase Admin SDK Initialized.")
+# Initialize Firebase only if the service account key file exists
+FIREBASE_INITIALIZED = False
+if os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
+    try:
+        cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
+        firebase_admin.initialize_app(cred)
+        FIREBASE_INITIALIZED = True
+        print("✅ Firebase Admin SDK Initialized.")
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to initialize Firebase: {str(e)}")
+        print("   Firebase authentication will not be available.")
+else:
+    print("⚠️  Warning: Firebase service account key not found.")
+    print(f"   Expected location: {SERVICE_ACCOUNT_KEY_PATH}")
+    print("   Firebase authentication will not be available.")
+    print("   To enable Firebase:")
+    print("   1. Download the service account key from Firebase Console")
+    print("   2. Place it at the expected location, or")
+    print("   3. Set FIREBASE_SERVICE_ACCOUNT_KEY_PATH environment variable")
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
