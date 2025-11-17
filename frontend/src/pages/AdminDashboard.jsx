@@ -993,6 +993,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700">
                     <tr>
+                      <th scope="col" className={thStyle}>Image</th>
                       <th scope="col" className={thStyle}>Service Title</th>
                       <th scope="col" className={thStyle}>Provider</th>
                       <th scope="col" className={thStyle}>Category</th>
@@ -1004,13 +1005,31 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                   <tbody className="divide-y divide-gray-700">
                     {services.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-gray-400">
+                        <td colSpan="7" className="px-6 py-8 text-center text-gray-400">
                           No services found
                         </td>
                       </tr>
                     ) : (
                       (services || []).map((service) => (
                         <tr key={service.id} className="hover:bg-gray-700 transition-colors">
+                          <td className={tdStyle}>
+                            {service.image ? (
+                              <img
+                                src={service.image.startsWith('http') 
+                                  ? service.image 
+                                  : `http://localhost:8000${service.image}`}
+                                alt={service.title}
+                                className="w-16 h-16 object-cover rounded-lg border border-gray-600"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-gray-700 rounded-lg border border-gray-600 flex items-center justify-center">
+                                <span className="text-gray-500 text-xs">No image</span>
+                              </div>
+                            )}
+                          </td>
                           <td className={tdStyle}>
                             <div className="font-semibold">{service.title}</div>
                             <div className="text-gray-400 text-xs mt-1 line-clamp-1">{service.description}</div>
@@ -1753,86 +1772,113 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
             >
-              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
                 <StarIcon className="w-6 h-6" />
                 Review Management
               </h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th scope="col" className={thStyle}>Service</th>
-                      <th scope="col" className={thStyle}>Seeker</th>
-                      <th scope="col" className={thStyle}>Rating</th>
-                      <th scope="col" className={thStyle}>Comment</th>
-                      <th scope="col" className={thStyle}>Created</th>
-                      <th scope="col" className={thStyle}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {reviews.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-gray-400">
-                          No reviews found
-                        </td>
-                      </tr>
-                    ) : (
-                      (reviews || []).map((review) => (
-                        <tr key={review.id} className="hover:bg-gray-700 transition-colors">
-                          <td className={tdStyle}>{review.service_details?.title || 'N/A'}</td>
-                          <td className={tdStyle}>
-                            {review.seeker_details?.email || 'N/A'}
-                          </td>
-                          <td className={tdStyle}>
-                            <div className="flex items-center gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <StarIcon
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating
-                                      ? 'text-yellow-400 fill-yellow-400'
-                                      : 'text-gray-500'
-                                  }`}
+              
+              {reviews.length === 0 ? (
+                <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
+                  <p className="text-gray-400 text-lg">No reviews found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(reviews || []).map((review) => (
+                    <div
+                      key={review.id}
+                      className="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-600 transition-all"
+                    >
+                      <div className="flex flex-col md:flex-row gap-4">
+                        {/* Left Section - Service Info */}
+                        <div className="flex-1">
+                          <div className="flex items-start gap-4">
+                            {review.service_details?.image && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={review.service_details.image.startsWith('http') 
+                                    ? review.service_details.image 
+                                    : `http://localhost:8000${review.service_details.image}`}
+                                  alt={review.service_details.title}
+                                  className="w-20 h-20 object-cover rounded-lg border border-gray-600"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
                                 />
-                              ))}
-                              <span className="ml-2 text-gray-300">({review.rating}/5)</span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-white mb-1">
+                                {review.service_details?.title || 'N/A'}
+                              </h3>
+                              <p className="text-sm text-gray-400 mb-2">
+                                Reviewed by: <span className="text-gray-300">{review.seeker_details?.email || 'N/A'}</span>
+                              </p>
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="flex items-center gap-1">
+                                  {[...Array(5)].map((_, i) => (
+                                    <StarIcon
+                                      key={i}
+                                      className={`w-5 h-5 ${
+                                        i < review.rating
+                                          ? 'text-yellow-400 fill-yellow-400'
+                                          : 'text-gray-500'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-gray-300 font-medium">({review.rating}/5)</span>
+                              </div>
+                              {review.comment && (
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                  {review.comment}
+                                </p>
+                              )}
+                              {!review.comment && (
+                                <p className="text-gray-500 text-sm italic">No comment provided</p>
+                              )}
                             </div>
-                          </td>
-                          <td className={tdStyle}>
-                            <div className="max-w-xs truncate text-gray-300">
-                              {review.comment || 'No comment'}
-                            </div>
-                          </td>
-                          <td className={tdStyle}>
-                            {review.created_at ? new Date(review.created_at).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className={tdStyle}>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEditReview(review)}
-                                disabled={updatingReviewId === review.id || deletingReviewId === review.id}
-                                className="p-2 text-blue-400 hover:text-blue-300 transition disabled:opacity-50"
-                                title="Edit review"
-                              >
-                                <PencilIcon className="w-4 h-4" />
-                              </button>
-                              <LoadingButton
-                                onClick={() => setDeleteReviewId(review.id)}
-                                loading={deletingReviewId === review.id}
-                                className="p-2 text-red-400 hover:text-red-300 transition"
-                                title="Delete review"
-                                variant="outline"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </LoadingButton>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+                        
+                        {/* Right Section - Meta & Actions */}
+                        <div className="flex flex-col justify-between items-end gap-3">
+                          <div className="text-right">
+                            <p className="text-xs text-gray-400 mb-1">Created</p>
+                            <p className="text-sm text-gray-300">
+                              {review.created_at ? new Date(review.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              }) : 'N/A'}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditReview(review)}
+                              disabled={updatingReviewId === review.id || deletingReviewId === review.id}
+                              className="px-3 py-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                              title="Edit review"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                              <span className="text-sm">Edit</span>
+                            </button>
+                            <LoadingButton
+                              onClick={() => setDeleteReviewId(review.id)}
+                              loading={deletingReviewId === review.id}
+                              className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition flex items-center gap-2"
+                              title="Delete review"
+                              variant="outline"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                              <span className="text-sm">Delete</span>
+                            </LoadingButton>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Review Edit Form */}
               {editingReview && (

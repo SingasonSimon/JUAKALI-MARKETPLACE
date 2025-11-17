@@ -54,16 +54,76 @@ class ServiceSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         """Return full image URL if image exists."""
         if obj.image:
-            # CloudinaryField returns a full URL, but we ensure it's always a string
-            image_url = str(obj.image)
-            # If it's already a full URL (starts with http), return it
-            if image_url.startswith('http://') or image_url.startswith('https://'):
-                return image_url
-            # Otherwise, it might be a relative path - construct full URL
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(image_url)
-            return image_url
+            try:
+                # Check if this is a CloudinaryField
+                if hasattr(obj.image, 'url'):
+                    cloudinary_url = obj.image.url
+                    # Check if image exists locally (for images uploaded before Cloudinary was configured)
+                    import os
+                    from django.conf import settings
+                    
+                    # Get the image path/name
+                    image_name = str(obj.image)
+                    if hasattr(obj.image, 'name'):
+                        image_name = obj.image.name
+                    elif hasattr(obj.image, 'public_id'):
+                        # For Cloudinary, check if file exists locally
+                        image_name = obj.image.public_id
+                    
+                    # Check if file exists in local media directory (try with and without extension)
+                    local_path = os.path.join(settings.MEDIA_ROOT, image_name)
+                    local_path_with_jpg = local_path + '.jpg'
+                    local_path_with_png = local_path + '.png'
+                    
+                    # Determine which local file exists
+                    actual_local_path = None
+                    if os.path.exists(local_path):
+                        actual_local_path = image_name
+                    elif os.path.exists(local_path_with_jpg):
+                        actual_local_path = image_name + '.jpg'
+                    elif os.path.exists(local_path_with_png):
+                        actual_local_path = image_name + '.png'
+                    
+                    if actual_local_path:
+                        # Image exists locally, serve from local media URL
+                        request = self.context.get('request')
+                        if request:
+                            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                            if not actual_local_path.startswith('/'):
+                                actual_local_path = '/' + actual_local_path
+                            return request.build_absolute_uri(media_url.rstrip('/') + actual_local_path)
+                    
+                    # If Cloudinary URL is available and file doesn't exist locally, use Cloudinary
+                    if cloudinary_url and (cloudinary_url.startswith('http://') or cloudinary_url.startswith('https://')):
+                        return cloudinary_url
+                
+                # Fallback: if it's a string path (local storage), construct full URL
+                image_path = str(obj.image)
+                if image_path.startswith('http://') or image_path.startswith('https://'):
+                    return image_path
+                
+                # For local storage, build absolute URI using request
+                request = self.context.get('request')
+                if request:
+                    from django.conf import settings
+                    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                    if not image_path.startswith('/'):
+                        image_path = '/' + image_path
+                    return request.build_absolute_uri(media_url.rstrip('/') + image_path)
+                
+                # Last resort: return relative path
+                return image_path
+            except Exception as e:
+                # Final fallback: try to construct URL from string
+                image_path = str(obj.image)
+                request = self.context.get('request')
+                if request and not (image_path.startswith('http://') or image_path.startswith('https://')):
+                    from django.conf import settings
+                    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                    if not image_path.startswith('/'):
+                        image_path = '/' + image_path
+                    return request.build_absolute_uri(media_url.rstrip('/') + image_path)
+                return image_path
         return None
     
     def to_internal_value(self, data):

@@ -112,7 +112,14 @@ export default function AdminLayout({ djangoAdminUser }) {
     { path: '/admin/settings', label: 'Settings', Icon: Cog6ToothIcon },
   ];
 
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActive = (path) => {
+    // Exact match for root path
+    if (path === '/admin') {
+      return location.pathname === '/admin';
+    }
+    // For other paths, check if it starts with the path
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   // Toggle sidebar (mobile)
   const toggleSidebar = () => {
@@ -148,15 +155,15 @@ export default function AdminLayout({ djangoAdminUser }) {
     <div className="min-h-screen bg-gray-900 flex relative">
       {/* Sidebar - Always fixed, sticky on scroll */}
       <aside
-        className={`${sidebarWidth} bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 shadow-xl fixed h-screen z-50 ${
+        className={`${sidebarWidth} bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 flex flex-col transition-all duration-300 shadow-2xl fixed h-screen z-50 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
         {/* Logo */}
-        <div className={`${sidebarCollapsed ? 'p-3' : 'p-4'} border-b border-gray-700 bg-gradient-to-r from-blue-900/50 to-purple-900/50`}>
-          <Link to="/admin" className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'} hover:opacity-80 transition-opacity`}>
+        <div className={`${sidebarCollapsed ? 'p-3' : 'p-4'} border-b border-gray-700/50 bg-gradient-to-r from-blue-900/60 to-purple-900/60 backdrop-blur-sm`}>
+          <Link to="/admin" className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'} hover:opacity-90 transition-opacity`}>
             {!sidebarCollapsed && (
-              <span className="text-xl font-bold text-white whitespace-nowrap">Admin Panel</span>
+              <span className="text-lg font-bold text-white whitespace-nowrap tracking-tight">Admin Panel</span>
             )}
             {sidebarCollapsed && (
               <ShieldCheckIcon className="w-6 h-6 text-white" />
@@ -165,23 +172,23 @@ export default function AdminLayout({ djangoAdminUser }) {
         </div>
 
         {/* Profile Section */}
-        <div className={`p-4 border-b border-gray-700 ${sidebarCollapsed ? 'px-2' : ''}`}>
+        <div className={`p-4 border-b border-gray-700/50 ${sidebarCollapsed ? 'px-2' : ''}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-3`}>
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base flex-shrink-0 shadow-lg ring-2 ring-blue-500/20">
               {djangoAdminUser?.first_name?.[0]?.toUpperCase() || 'A'}
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold truncate">
+                <p className="text-white font-semibold text-sm truncate">
                   {displayName || 'Admin'}
                 </p>
-                <p className="text-gray-300 text-sm truncate">{djangoAdminUser?.email}</p>
+                <p className="text-gray-400 text-xs truncate">{djangoAdminUser?.email}</p>
               </div>
             )}
           </div>
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-900 text-red-300 text-xs rounded">
+              <span className="px-2.5 py-1 bg-red-900/80 text-red-200 text-xs font-medium rounded-md border border-red-800/50">
                 ADMIN
               </span>
             </div>
@@ -189,25 +196,31 @@ export default function AdminLayout({ djangoAdminUser }) {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-4'} hide-scrollbar`}>
-          <ul className="space-y-2">
+        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'} hide-scrollbar`}>
+          <ul className="space-y-1.5">
             {navItems.map((item) => (
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-4'} py-3 rounded-lg transition-colors group relative ${
+                  onClick={() => {
+                    // Close sidebar on mobile when clicking a nav item
+                    if (!isDesktop) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                  className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'} py-2.5 rounded-lg transition-all duration-200 group relative ${
                     isActive(item.path)
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/20'
+                      : 'text-gray-300 hover:bg-gray-700/80 hover:text-white'
                   }`}
                   title={sidebarCollapsed ? item.label : ''}
                 >
-                  <item.Icon className="w-5 h-5 flex-shrink-0" />
+                  <item.Icon className={`w-5 h-5 flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`} />
                   {!sidebarCollapsed && (
-                    <span className="font-medium whitespace-nowrap">{item.label}</span>
+                    <span className="font-medium text-sm whitespace-nowrap">{item.label}</span>
                   )}
                   {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                    <span className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-200 shadow-lg border border-gray-700">
                       {item.label}
                     </span>
                   )}
@@ -218,12 +231,12 @@ export default function AdminLayout({ djangoAdminUser }) {
         </nav>
 
         {/* Bottom Actions */}
-        <div className={`p-4 border-t border-gray-700 ${sidebarCollapsed ? 'px-2' : ''}`}>
+        <div className={`p-3 border-t border-gray-700/50 ${sidebarCollapsed ? 'px-2' : ''}`}>
           {sidebarCollapsed ? (
             <button
               onClick={handleLogout}
               disabled={logoutLoading}
-              className="w-full py-2 px-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center justify-center"
+              className="w-full py-2.5 px-2 rounded-lg bg-red-600/90 hover:bg-red-600 text-white transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-red-500/20"
               title="Logout"
             >
               {logoutLoading ? (
@@ -240,7 +253,7 @@ export default function AdminLayout({ djangoAdminUser }) {
               onClick={handleLogout}
               loading={logoutLoading}
               variant="danger"
-              className="w-full py-2 px-4 text-sm flex items-center justify-center gap-2"
+              className="w-full py-2.5 px-4 text-sm flex items-center justify-center gap-2 font-medium"
             >
               <ArrowRightOnRectangleIcon className="w-4 h-4" />
               Logout
@@ -250,7 +263,7 @@ export default function AdminLayout({ djangoAdminUser }) {
           {/* Collapse Toggle Button (Desktop only) */}
           <button
             onClick={toggleCollapsed}
-            className="hidden lg:flex w-full mt-2 py-2 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors items-center justify-center gap-2 text-sm"
+            className="hidden lg:flex w-full mt-2 py-2 px-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white transition-all duration-200 items-center justify-center gap-2 text-xs font-medium border border-gray-600/50"
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
