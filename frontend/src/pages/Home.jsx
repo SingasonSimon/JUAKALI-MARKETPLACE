@@ -45,7 +45,8 @@ const cardVariants = {
     }
   },
   hover: {
-    scale: 1.02,
+    scale: 1.005,
+    y: -2,
     transition: {
       duration: 0.2
     }
@@ -64,12 +65,12 @@ function ServiceCard({ service, index }) {
     >
       <Link 
         to={`/services/${service.id}`}
-        className="block p-6 bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-200 border border-gray-700 hover:border-blue-500"
+        className="block p-5 bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500"
       >
         <div className="flex flex-col h-full">
           <div className="flex-grow">
-            <h3 className="text-xl font-semibold text-white mb-2 min-h-[3.5rem]">{service.title}</h3>
-            <p className="text-gray-400 text-sm mb-4 line-clamp-3">{service.description}</p>
+            <h3 className="text-lg font-semibold text-white mb-2 min-h-[3rem]">{service.title}</h3>
+            <p className="text-gray-400 text-sm mb-3 line-clamp-3">{service.description}</p>
             <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
               <span className="bg-gray-700 px-2 py-1 rounded">{service.category_details?.name || 'Uncategorized'}</span>
               <span className="text-gray-400">
@@ -77,8 +78,8 @@ function ServiceCard({ service, index }) {
               </span>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <p className="text-2xl font-bold text-blue-400">KES {parseFloat(service.price).toLocaleString()}</p>
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <p className="text-xl font-bold text-blue-400">KES {parseFloat(service.price).toLocaleString()}</p>
           </div>
         </div>
       </Link>
@@ -245,7 +246,7 @@ export default function Home() {
       >
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold text-white text-center mb-12">Why Choose Juakali Marketplace?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
                 Icon: MagnifyingGlassIcon,

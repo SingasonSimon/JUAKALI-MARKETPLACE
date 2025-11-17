@@ -62,7 +62,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           {/* Logo/Brand */}
           <motion.div
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ y: -1 }}
             transition={{ duration: 0.2 }}
             className="flex items-center h-full"
           >

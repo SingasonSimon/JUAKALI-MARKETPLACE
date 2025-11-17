@@ -711,8 +711,8 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
             <motion.div
               key={index}
               variants={itemVariants}
-              whileHover={{ scale: 1.02 }}
-              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+              whileHover={{ y: -2 }}
+              className={`${stat.bg} p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 shadow-md hover:shadow-lg rounded-lg`}
             >
               <div className="flex items-start justify-between mb-2">
                 <IconComponent className={`w-8 h-8 ${stat.color}`} />
@@ -741,8 +741,8 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
             <motion.div
               key={index}
               variants={itemVariants}
-              whileHover={{ scale: 1.02 }}
-              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+              whileHover={{ y: -2 }}
+              className={`${stat.bg} p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 shadow-md hover:shadow-lg rounded-lg`}
             >
               <div className="flex items-start justify-between mb-2">
                 <IconComponent className={`w-8 h-8 ${stat.color}`} />

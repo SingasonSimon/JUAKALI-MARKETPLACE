@@ -293,28 +293,28 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
 function ServiceCard({ service, onEdit, onDelete, isDeleting = false, isEditing = false }) {
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="p-6 bg-gray-800 shadow-md hover:shadow-xl transition border border-gray-700 hover:border-blue-500 rounded-lg"
+      whileHover={{ y: -2 }}
+      className="p-4 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-white mb-2">{service.title}</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">{service.title}</h3>
           <p className="text-gray-400 text-sm mb-3 line-clamp-2">{service.description}</p>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-sm mb-2">
             <span className="bg-gray-700 px-2 py-1 rounded text-gray-300">
               {service.category_details?.name || 'Uncategorized'}
             </span>
-            <span className="text-2xl font-bold text-blue-400">
+            <span className="text-xl font-bold text-blue-400">
               KES {parseFloat(service.price).toLocaleString()}
             </span>
           </div>
-          <p className="text-gray-500 text-xs mt-2">
+          <p className="text-gray-500 text-xs">
             Created: {new Date(service.created_at).toLocaleDateString()}
           </p>
         </div>
       </div>
       
-      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-700">
+      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700">
         <LoadingButton
           onClick={() => onEdit(service)}
           disabled={isDeleting || isEditing}
@@ -360,8 +360,8 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="p-5 bg-gray-800 shadow-md border border-gray-700 hover:border-blue-500 rounded-lg"
+      whileHover={{ y: -2 }}
+      className="p-4 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
@@ -375,7 +375,7 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
         </span>
       </div>
       
-      <div className="space-y-1 text-sm text-gray-300 mb-4">
+      <div className="space-y-1.5 text-sm text-gray-300 mb-4">
         <p><span className="font-semibold text-gray-300">Date:</span> {bookingDate.toLocaleDateString()}</p>
         <p><span className="font-semibold text-gray-300">Time:</span> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         <p><span className="font-semibold text-gray-300">Booked on:</span> {new Date(booking.created_at).toLocaleDateString()}</p>
@@ -633,7 +633,7 @@ export default function ProviderDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => <StatsCardSkeleton key={i} />)}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-4">
             <ServiceCardSkeleton />
           </div>
@@ -737,12 +737,12 @@ export default function ProviderDashboard() {
         ].map((stat, index) => {
           const IconComponent = stat.Icon;
           return (
-            <motion.div
-              key={index}
-              variants={itemVariants}
-              whileHover={{ scale: 1.02 }}
-              className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
-            >
+          <motion.div
+            key={index}
+            variants={itemVariants}
+            whileHover={{ y: -2 }}
+            className={`${stat.bg} p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 shadow-md hover:shadow-lg rounded-lg`}
+          >
               <div className="flex items-start justify-between mb-2">
                 <IconComponent className={`w-8 h-8 ${stat.color}`} />
                 <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>

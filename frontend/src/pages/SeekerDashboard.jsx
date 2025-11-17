@@ -204,8 +204,8 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="p-5 bg-gray-800 shadow-md hover:shadow-lg transition border border-gray-700 hover:border-blue-500 rounded-lg"
+      whileHover={{ y: -2 }}
+      className="p-4 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg"
     >
       <div className="flex justify-between items-start mb-3">
         <Link to={`/services/${service_details.id}`} className="flex-1">
@@ -218,7 +218,7 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
         </span>
       </div>
       
-      <div className="space-y-2 text-sm text-gray-300 mb-4">
+      <div className="space-y-1.5 text-sm text-gray-300 mb-4">
         <p>
           <span className="font-semibold text-gray-300">Date:</span> {bookingDate.toLocaleDateString()}
         </p>
@@ -601,7 +601,7 @@ export default function SeekerDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => <StatsCardSkeleton key={i} />)}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-4">
             {[1, 2, 3].map(i => <BookingCardSkeleton key={i} />)}
           </div>
@@ -708,8 +708,8 @@ export default function SeekerDashboard() {
           <motion.div
             key={index}
             variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className={`${stat.bg} p-6 border border-gray-700 hover:border-blue-500 transition shadow-lg rounded-lg`}
+            whileHover={{ y: -2 }}
+            className={`${stat.bg} p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 shadow-md hover:shadow-lg rounded-lg`}
           >
             <div className="flex items-start justify-between mb-2">
               {(() => {
@@ -830,7 +830,7 @@ export default function SeekerDashboard() {
                     <motion.div
                       key={service.id}
                       variants={itemVariants}
-                      whileHover={{ scale: 1.02 }}
+                      whileHover={{ y: -2 }}
                       transition={{ duration: 0.2 }}
                     >
                       <ServiceCard 
