@@ -32,6 +32,13 @@ import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import FormInput from '../components/FormInput';
+import {
+  UserGrowthChart,
+  BookingTrendsChart,
+  UserDistributionChart,
+  BookingStatusChart,
+  ServiceCategoryChart
+} from '../components/Charts';
 
 export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = null }) {
   const { dbUser: firebaseDbUser } = useAuth();
@@ -576,6 +583,25 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     totalServices: (services || []).length,
     totalBookings: (bookings || []).length,
   };
+
+
+  // Format user growth data
+  const userGrowthData = useMemo(() => {
+    if (!analytics?.trends?.daily_signups) return [];
+    return analytics.trends.daily_signups.map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      count: item.count
+    }));
+  }, [analytics]);
+
+  // Format booking trends data
+  const bookingTrendsData = useMemo(() => {
+    if (!analytics?.trends?.daily_bookings) return [];
+    return analytics.trends.daily_bookings.map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      count: item.count
+    }));
+  }, [analytics]);
 
   const bookingStatusCounts = useMemo(() => ({
     pendingAdmin: (bookings || []).filter(b => b.status === 'PENDING_ADMIN_APPROVAL').length,
@@ -1782,101 +1808,130 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                   <p className="text-gray-400 text-lg">No reviews found</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {(reviews || []).map((review) => (
-                    <div
-                      key={review.id}
-                      className="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-600 transition-all"
-                    >
-                      <div className="flex flex-col md:flex-row gap-4">
-                        {/* Left Section - Service Info */}
-                        <div className="flex-1">
-                          <div className="flex items-start gap-4">
-                            {review.service_details?.image && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={review.service_details.image.startsWith('http') 
-                                    ? review.service_details.image 
-                                    : `http://localhost:8000${review.service_details.image}`}
-                                  alt={review.service_details.title}
-                                  className="w-20 h-20 object-cover rounded-lg border border-gray-600"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            )}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {(reviews || []).map((review) => {
+                    const reviewerName = review.seeker_details 
+                      ? `${review.seeker_details.first_name || ''} ${review.seeker_details.last_name || ''}`.trim() || review.seeker_details.email
+                      : 'Unknown User';
+                    const reviewerEmail = review.seeker_details?.email || 'N/A';
+                    
+                    return (
+                      <div
+                        key={review.id}
+                        className="bg-gray-800 rounded-lg border border-gray-700 hover:border-blue-500/50 transition-all overflow-hidden"
+                      >
+                        {/* Service Image Section - Full Width */}
+                        {review.service_details?.image && (
+                          <div className="w-full h-48 overflow-hidden bg-gray-900">
+                            <img
+                              src={review.service_details.image.startsWith('http') 
+                                ? review.service_details.image 
+                                : `http://localhost:8000${review.service_details.image}`}
+                              alt={review.service_details.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Header Section */}
+                        <div className="p-4 border-b border-gray-700 bg-gray-750">
+                          <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-white mb-1">
+                              <h3 className="text-base font-semibold text-white mb-1 truncate">
                                 {review.service_details?.title || 'N/A'}
                               </h3>
-                              <p className="text-sm text-gray-400 mb-2">
-                                Reviewed by: <span className="text-gray-300">{review.seeker_details?.email || 'N/A'}</span>
+                              <p className="text-xs text-gray-400 truncate">
+                                {review.service_details?.category_details?.name || 'Uncategorized'}
                               </p>
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="flex items-center gap-1">
-                                  {[...Array(5)].map((_, i) => (
-                                    <StarIcon
-                                      key={i}
-                                      className={`w-5 h-5 ${
-                                        i < review.rating
-                                          ? 'text-yellow-400 fill-yellow-400'
-                                          : 'text-gray-500'
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-gray-300 font-medium">({review.rating}/5)</span>
-                              </div>
-                              {review.comment && (
-                                <p className="text-gray-300 text-sm leading-relaxed">
-                                  {review.comment}
-                                </p>
-                              )}
-                              {!review.comment && (
-                                <p className="text-gray-500 text-sm italic">No comment provided</p>
-                              )}
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <p className="text-xs text-gray-400 mb-1">Date</p>
+                              <p className="text-xs text-gray-300">
+                                {review.created_at ? new Date(review.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                }) : 'N/A'}
+                              </p>
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Right Section - Meta & Actions */}
-                        <div className="flex flex-col justify-between items-end gap-3">
-                          <div className="text-right">
-                            <p className="text-xs text-gray-400 mb-1">Created</p>
-                            <p className="text-sm text-gray-300">
-                              {review.created_at ? new Date(review.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              }) : 'N/A'}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditReview(review)}
-                              disabled={updatingReviewId === review.id || deletingReviewId === review.id}
-                              className="px-3 py-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
-                              title="Edit review"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                              <span className="text-sm">Edit</span>
-                            </button>
-                            <LoadingButton
-                              onClick={() => setDeleteReviewId(review.id)}
-                              loading={deletingReviewId === review.id}
-                              className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition flex items-center gap-2"
-                              title="Delete review"
-                              variant="outline"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                              <span className="text-sm">Delete</span>
-                            </LoadingButton>
+
+                        {/* Reviewer Section */}
+                        <div className="p-4 border-b border-gray-700">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                              {review.seeker_details?.first_name?.[0]?.toUpperCase() || reviewerEmail[0]?.toUpperCase() || 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white truncate">
+                                {reviewerName}
+                              </p>
+                              <p className="text-xs text-gray-400 truncate">
+                                {reviewerEmail}
+                              </p>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Rating Section */}
+                        <div className="p-4 border-b border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <StarIcon
+                                  key={i}
+                                  className={`w-5 h-5 ${
+                                    i < review.rating
+                                      ? 'text-yellow-400 fill-yellow-400'
+                                      : 'text-gray-500'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-gray-300 font-semibold text-sm">({review.rating}/5)</span>
+                          </div>
+                        </div>
+
+                        {/* Comment Section */}
+                        <div className="p-4">
+                          {review.comment ? (
+                            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                              {review.comment}
+                            </p>
+                          ) : (
+                            <p className="text-gray-500 text-sm italic">No comment provided</p>
+                          )}
+                        </div>
+
+                        {/* Actions Section */}
+                        <div className="p-4 border-t border-gray-700 bg-gray-750 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditReview(review)}
+                            disabled={updatingReviewId === review.id || deletingReviewId === review.id}
+                            className="px-3 py-1.5 text-sm text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                            title="Edit review"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                            <span>Edit</span>
+                          </button>
+                          <LoadingButton
+                            onClick={() => setDeleteReviewId(review.id)}
+                            loading={deletingReviewId === review.id}
+                            className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition flex items-center gap-2"
+                            title="Delete review"
+                            variant="outline"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                            <span>Delete</span>
+                          </LoadingButton>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -1959,49 +2014,74 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
-              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
                 <ChartBarIcon className="w-6 h-6" />
                 Platform Analytics
               </h2>
               {analytics ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="bg-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Users</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.users.total}</span></p>
-                      <p className="text-gray-300">Active: <span className="text-white font-bold">{analytics.users.active}</span></p>
-                      <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.users.new_30d}</span></p>
+                <>
+                  {/* Key Metrics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-green-900/50 to-green-800/50 rounded-lg p-5 border border-green-700/50">
+                      <h3 className="text-sm font-medium text-green-300 mb-2">Total Users</h3>
+                      <p className="text-2xl font-bold text-white">{analytics.users.total}</p>
+                      <p className="text-xs text-green-200 mt-1">{analytics.users.active} active</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 rounded-lg p-5 border border-purple-700/50">
+                      <h3 className="text-sm font-medium text-purple-300 mb-2">Total Bookings</h3>
+                      <p className="text-2xl font-bold text-white">{analytics.bookings.total}</p>
+                      <p className="text-xs text-purple-200 mt-1">{analytics.bookings.new_30d} new (30d)</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/50 rounded-lg p-5 border border-orange-700/50">
+                      <h3 className="text-sm font-medium text-orange-300 mb-2">Total Services</h3>
+                      <p className="text-2xl font-bold text-white">{analytics.services.total}</p>
+                      <p className="text-xs text-orange-200 mt-1">Avg: KES {analytics.services.avg_price.toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="bg-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Services</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.services.total}</span></p>
-                      <p className="text-gray-300">Avg Price: <span className="text-white font-bold">KES {analytics.services.avg_price.toLocaleString()}</span></p>
+
+                  {/* Charts Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <UserGrowthChart data={userGrowthData} />
+                    <BookingTrendsChart data={bookingTrendsData} />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <BookingTrendsChart data={bookingTrendsData} />
+                    <UserDistributionChart data={analytics.users.by_role || []} />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <BookingStatusChart data={analytics.bookings.by_status || []} />
+                    <ServiceCategoryChart data={analytics.services.by_category || []} />
+                  </div>
+
+                  {/* Additional Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                      <h3 className="text-lg font-semibold text-white mb-4">Reviews</h3>
+                      <div className="space-y-2">
+                        <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.reviews.total}</span></p>
+                        <p className="text-gray-300">Avg Rating: <span className="text-white font-bold">{analytics.reviews.avg_rating}</span></p>
+                        <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.reviews.new_30d}</span></p>
+                      </div>
+                    </div>
+                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                      <h3 className="text-lg font-semibold text-white mb-4">Complaints</h3>
+                      <div className="space-y-2">
+                        <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.complaints.total}</span></p>
+                        <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.complaints.new_30d}</span></p>
+                      </div>
+                    </div>
+                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                      <h3 className="text-lg font-semibold text-white mb-4">User Activity</h3>
+                      <div className="space-y-2">
+                        <p className="text-gray-300">New (7d): <span className="text-white font-bold">{analytics.users.new_7d}</span></p>
+                        <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.users.new_30d}</span></p>
+                        <p className="text-gray-300">Bookings (7d): <span className="text-white font-bold">{analytics.bookings.new_7d}</span></p>
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Bookings</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.bookings.total}</span></p>
-                      <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.bookings.new_30d}</span></p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Reviews</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.reviews.total}</span></p>
-                      <p className="text-gray-300">Avg Rating: <span className="text-white font-bold">{analytics.reviews.avg_rating}</span></p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Complaints</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-300">Total: <span className="text-white font-bold">{analytics.complaints.total}</span></p>
-                      <p className="text-gray-300">New (30d): <span className="text-white font-bold">{analytics.complaints.new_30d}</span></p>
-                    </div>
-                  </div>
-                </div>
+                </>
               ) : (
                 <p className="text-gray-400 text-center py-8">Loading analytics...</p>
               )}

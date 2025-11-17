@@ -40,4 +40,7 @@ urlpatterns = [
     
     # /api/payments/<pk>/
     path('payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment-detail'),
+    
+    # /api/provider/analytics/
+    path('provider/analytics/', views.ProviderAnalyticsView.as_view(), name='provider-analytics'),
 ]

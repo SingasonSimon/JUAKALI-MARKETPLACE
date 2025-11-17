@@ -126,6 +126,20 @@ const deleteService = async (serviceId) => {
   }
 };
 
+/**
+ * Fetches provider analytics including revenue data.
+ * This can only be done by an authenticated PROVIDER.
+ */
+const getProviderAnalytics = async () => {
+  try {
+    const { data } = await apiClient.get('/provider/analytics/');
+    return data;
+  } catch (error) {
+    console.error("Error fetching provider analytics:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const serviceService = {
   getAllServices,
   getServiceById,
@@ -133,4 +147,5 @@ export const serviceService = {
   updateService,
   deleteService,
   getMyServices,
+  getProviderAnalytics,
 };

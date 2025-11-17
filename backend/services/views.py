@@ -2,7 +2,9 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, Avg
+from django.utils import timezone
+from datetime import timedelta
 from .models import Service, Category, Booking, Review, Complaint, Payment
 from .serializers import ServiceSerializer, CategorySerializer, BookingSerializer, ReviewSerializer, ComplaintSerializer, PaymentSerializer
 from .permissions import (
@@ -441,3 +443,115 @@ class PaymentDetailView(generics.RetrieveAPIView):
         elif user.role == 'PROVIDER':
             return Payment.objects.filter(booking__service__provider=user)
         return Payment.objects.none()
+
+
+class ProviderAnalyticsView(APIView):
+    """
+    GET: Provider-specific analytics including revenue from their services
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get(self, request):
+        if request.user.role != 'PROVIDER':
+            return Response({'error': 'Only providers can access this endpoint'}, status=403)
+        
+        provider = request.user
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        seven_days_ago = now - timedelta(days=7)
+        
+        # Provider's services
+        provider_services = Service.objects.filter(provider=provider)
+        total_services = provider_services.count()
+        services_by_category = provider_services.values('category__name').annotate(count=Count('id'))
+        avg_service_price = provider_services.aggregate(avg_price=Avg('price'))['avg_price'] or 0
+        
+        # Provider's bookings
+        provider_bookings = Booking.objects.filter(service__provider=provider)
+        total_bookings = provider_bookings.count()
+        bookings_by_status = provider_bookings.values('status').annotate(count=Count('id'))
+        bookings_30d = provider_bookings.filter(created_at__gte=thirty_days_ago).count()
+        bookings_7d = provider_bookings.filter(created_at__gte=seven_days_ago).count()
+        
+        # Revenue calculations from completed payments
+        completed_payments = Payment.objects.filter(
+            booking__service__provider=provider,
+            booking__status='COMPLETED',
+            status='COMPLETED'
+        )
+        
+        total_revenue = completed_payments.aggregate(total=Sum('amount'))['total'] or 0
+        
+        # For revenue calculations, use completed_at if available, otherwise use created_at
+        revenue_30d = completed_payments.filter(
+            Q(completed_at__gte=thirty_days_ago) | Q(completed_at__isnull=True, created_at__gte=thirty_days_ago)
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        revenue_7d = completed_payments.filter(
+            Q(completed_at__gte=seven_days_ago) | Q(completed_at__isnull=True, created_at__gte=seven_days_ago)
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        # Daily revenue for last 7 days
+        daily_revenue = []
+        for i in range(7):
+            date = seven_days_ago + timedelta(days=i)
+            next_date = date + timedelta(days=1)
+            # Use completed_at if available, otherwise use created_at
+            day_revenue = completed_payments.filter(
+                Q(completed_at__gte=date, completed_at__lt=next_date) |
+                Q(completed_at__isnull=True, created_at__gte=date, created_at__lt=next_date)
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            
+            daily_revenue.append({
+                'date': date.date().isoformat(),
+                'revenue': float(day_revenue)
+            })
+        
+        # Daily bookings for last 7 days
+        daily_bookings = []
+        for i in range(7):
+            date = seven_days_ago + timedelta(days=i)
+            next_date = date + timedelta(days=1)
+            day_bookings = provider_bookings.filter(
+                created_at__gte=date,
+                created_at__lt=next_date
+            ).count()
+            
+            daily_bookings.append({
+                'date': date.date().isoformat(),
+                'count': day_bookings
+            })
+        
+        # Reviews for provider's services
+        provider_reviews = Review.objects.filter(service__provider=provider)
+        total_reviews = provider_reviews.count()
+        avg_rating = provider_reviews.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+        reviews_30d = provider_reviews.filter(created_at__gte=thirty_days_ago).count()
+        
+        return Response({
+            'services': {
+                'total': total_services,
+                'by_category': list(services_by_category),
+                'avg_price': float(avg_service_price),
+            },
+            'bookings': {
+                'total': total_bookings,
+                'by_status': list(bookings_by_status),
+                'new_30d': bookings_30d,
+                'new_7d': bookings_7d,
+            },
+            'revenue': {
+                'total': float(total_revenue),
+                'last_30d': float(revenue_30d),
+                'last_7d': float(revenue_7d),
+            },
+            'reviews': {
+                'total': total_reviews,
+                'avg_rating': round(avg_rating, 2),
+                'new_30d': reviews_30d,
+            },
+            'trends': {
+                'daily_revenue': daily_revenue,
+                'daily_bookings': daily_bookings,
+            }
+        }, status=200)

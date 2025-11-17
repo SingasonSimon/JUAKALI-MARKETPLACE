@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   HandRaisedIcon, 
@@ -13,7 +13,8 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon,
   StarIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
@@ -26,6 +27,12 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 import ReviewList from '../components/ReviewList';
 import StarRating from '../components/StarRating';
 import { ServiceCardSkeleton, BookingCardSkeleton, StatsCardSkeleton } from '../components/LoadingSkeleton';
+import {
+  RevenueChart,
+  BookingTrendsChart,
+  BookingStatusChart,
+  ServiceCategoryChart
+} from '../components/Charts';
 
 // Create Service Form Component
 function CreateServiceForm({ categories, onServiceCreated, onClose }) {
@@ -525,6 +532,7 @@ export default function ProviderDashboard() {
   const [myBookings, setMyBookings] = useState([]);
   const [categories, setCategories] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [providerAnalytics, setProviderAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -540,7 +548,7 @@ export default function ProviderDashboard() {
   const [deleteCategoryId, setDeleteCategoryId] = useState(null);
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
   const [categoryLoading, setCategoryLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState('services'); // 'services', 'categories', or 'reviews'
+  const [activeSection, setActiveSection] = useState('services'); // 'services', 'categories', 'reviews', or 'analytics'
   
   // Loading states for booking operations
   const [confirmingBookingId, setConfirmingBookingId] = useState(null);
@@ -593,6 +601,21 @@ export default function ProviderDashboard() {
     };
     loadReviews();
   }, [activeSection, myServices]);
+
+  useEffect(() => {
+    const loadProviderAnalytics = async () => {
+      if (activeSection === 'analytics') {
+        try {
+          const analytics = await serviceService.getProviderAnalytics();
+          setProviderAnalytics(analytics);
+        } catch (err) {
+          console.error('Failed to load provider analytics:', err);
+          showToast('Failed to load analytics data', 'error');
+        }
+      }
+    };
+    loadProviderAnalytics();
+  }, [activeSection, showToast]);
 
   const handleServiceCreated = (newService) => {
     setMyServices([newService, ...myServices]);
@@ -723,6 +746,42 @@ export default function ProviderDashboard() {
     adminApproved: myBookings.filter(b => b.status === 'ADMIN_APPROVED').length,
     confirmedBookings: myBookings.filter(b => b.status === 'CONFIRMED').length,
   };
+
+  // Format revenue chart data from backend (last 7 days)
+  const providerRevenueChartData = useMemo(() => {
+    if (!providerAnalytics?.trends?.daily_revenue) return [];
+    return providerAnalytics.trends.daily_revenue.map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      revenue: item.revenue || 0
+    }));
+  }, [providerAnalytics]);
+
+  // Format booking trends data from backend (last 7 days)
+  const providerBookingTrendsData = useMemo(() => {
+    if (!providerAnalytics?.trends?.daily_bookings) return [];
+    return providerAnalytics.trends.daily_bookings.map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      count: item.count || 0
+    }));
+  }, [providerAnalytics]);
+
+  // Booking status distribution from backend
+  const providerBookingStatusData = useMemo(() => {
+    if (!providerAnalytics?.bookings?.by_status) return [];
+    return providerAnalytics.bookings.by_status.map(item => ({
+      status: item.status,
+      count: item.count
+    }));
+  }, [providerAnalytics]);
+
+  // Service category distribution from backend
+  const providerServiceCategoryData = useMemo(() => {
+    if (!providerAnalytics?.services?.by_category) return [];
+    return providerAnalytics.services.by_category.map(item => ({
+      category__name: item.category__name || 'Uncategorized',
+      count: item.count
+    }));
+  }, [providerAnalytics]);
 
   if (loading) {
     return (
@@ -860,7 +919,8 @@ export default function ProviderDashboard() {
             {[
               { id: 'services', label: 'Services', Icon: Cog6ToothIcon },
               { id: 'categories', label: 'Categories', Icon: FolderIcon },
-              { id: 'reviews', label: 'Reviews', Icon: StarIcon }
+              { id: 'reviews', label: 'Reviews', Icon: StarIcon },
+              { id: 'analytics', label: 'Analytics', Icon: ChartBarIcon }
             ].map((section) => (
               <button
                 key={section.id}
@@ -1192,6 +1252,103 @@ export default function ProviderDashboard() {
                     );
                   })}
                 </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Analytics Section */}
+          {activeSection === 'analytics' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <ChartBarIcon className="w-6 h-6" />
+                Provider Analytics
+              </h2>
+
+              {providerAnalytics ? (
+                <>
+                  {/* Key Metrics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 rounded-lg p-5 border border-blue-700/50">
+                      <h3 className="text-sm font-medium text-blue-300 mb-2">Total Revenue</h3>
+                      <p className="text-2xl font-bold text-white">KES {providerAnalytics.revenue?.total?.toLocaleString() || '0'}</p>
+                      <p className="text-xs text-blue-200 mt-1">From completed bookings</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-900/50 to-green-800/50 rounded-lg p-5 border border-green-700/50">
+                      <h3 className="text-sm font-medium text-green-300 mb-2">Total Services</h3>
+                      <p className="text-2xl font-bold text-white">{providerAnalytics.services?.total || 0}</p>
+                      <p className="text-xs text-green-200 mt-1">Active services</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 rounded-lg p-5 border border-purple-700/50">
+                      <h3 className="text-sm font-medium text-purple-300 mb-2">Total Bookings</h3>
+                      <p className="text-2xl font-bold text-white">{providerAnalytics.bookings?.total || 0}</p>
+                      <p className="text-xs text-purple-200 mt-1">{providerAnalytics.bookings?.new_30d || 0} new (30d)</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/50 rounded-lg p-5 border border-orange-700/50">
+                      <h3 className="text-sm font-medium text-orange-300 mb-2">Revenue (30d)</h3>
+                      <p className="text-2xl font-bold text-white">
+                        KES {providerAnalytics.revenue?.last_30d?.toLocaleString() || '0'}
+                      </p>
+                      <p className="text-xs text-orange-200 mt-1">Last 30 days</p>
+                    </div>
+                  </div>
+
+              {/* Charts Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <RevenueChart data={providerRevenueChartData} />
+                <BookingTrendsChart data={providerBookingTrendsData} />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <BookingStatusChart data={providerBookingStatusData} />
+                <ServiceCategoryChart data={providerServiceCategoryData} />
+              </div>
+
+              {/* Additional Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-semibold text-white mb-4">Booking Status</h3>
+                  <div className="space-y-2">
+                    {providerBookingStatusData.map(({ status, count }) => (
+                      <p key={status} className="text-gray-300">
+                        {status.replace(/_/g, ' ')}: <span className="text-white font-bold">{count}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-semibold text-white mb-4">Service Performance</h3>
+                  <div className="space-y-2">
+                    <p className="text-gray-300">Avg Price: <span className="text-white font-bold">
+                      KES {providerAnalytics.services?.avg_price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0'}
+                    </span></p>
+                    <p className="text-gray-300">Total Reviews: <span className="text-white font-bold">
+                      {providerAnalytics.reviews?.total || 0}
+                    </span></p>
+                    <p className="text-gray-300">Avg Rating: <span className="text-white font-bold">
+                      {providerAnalytics.reviews?.avg_rating || 'N/A'}
+                    </span></p>
+                  </div>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+                  <div className="space-y-2">
+                    <p className="text-gray-300">New Bookings (7d): <span className="text-white font-bold">
+                      {providerAnalytics.bookings?.new_7d || 0}
+                    </span></p>
+                    <p className="text-gray-300">Revenue (7d): <span className="text-white font-bold">
+                      KES {providerAnalytics.revenue?.last_7d?.toLocaleString() || '0'}
+                    </span></p>
+                  </div>
+                </div>
+              </div>
+                </>
+              ) : (
+                <p className="text-gray-400 text-center py-8">Loading analytics...</p>
               )}
             </motion.div>
           )}
