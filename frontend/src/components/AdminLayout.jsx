@@ -174,7 +174,18 @@ export default function AdminLayout({ djangoAdminUser }) {
         {/* Profile Section */}
         <div className={`p-4 border-b border-gray-700/50 ${sidebarCollapsed ? 'px-2' : ''}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-3`}>
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base flex-shrink-0 shadow-lg ring-2 ring-blue-500/20">
+            {djangoAdminUser?.profile_image ? (
+              <img 
+                src={djangoAdminUser.profile_image} 
+                alt="Profile" 
+                className="w-11 h-11 rounded-full object-cover flex-shrink-0 shadow-lg ring-2 ring-blue-500/20"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div className={`w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base flex-shrink-0 shadow-lg ring-2 ring-blue-500/20 ${djangoAdminUser?.profile_image ? 'hidden' : ''}`}>
               {djangoAdminUser?.first_name?.[0]?.toUpperCase() || 'A'}
             </div>
             {!sidebarCollapsed && (
@@ -328,7 +339,18 @@ export default function AdminLayout({ djangoAdminUser }) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors"
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+              {djangoAdminUser?.profile_image ? (
+                <img 
+                  src={djangoAdminUser.profile_image} 
+                  alt="Profile" 
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0 ${djangoAdminUser?.profile_image ? 'hidden' : ''}`}>
                 {djangoAdminUser?.first_name?.[0]?.toUpperCase() || 'A'}
               </div>
               <span className="text-white font-medium hidden sm:block truncate max-w-[120px]">

@@ -25,7 +25,9 @@ export default function Profile() {
     phone_number: dbUser?.phone_number || '',
     address: dbUser?.address || '',
     show_contact_info: dbUser?.show_contact_info || false,
+    profile_image: null,
   });
+  const [imagePreview, setImagePreview] = useState(dbUser?.profile_image || null);
 
   // Update form data when dbUser changes
   useEffect(() => {
@@ -37,7 +39,9 @@ export default function Profile() {
         phone_number: dbUser.phone_number || '',
         address: dbUser.address || '',
         show_contact_info: dbUser.show_contact_info || false,
+        profile_image: null,
       });
+      setImagePreview(dbUser.profile_image || null);
     }
   }, [dbUser]);
 
@@ -66,11 +70,24 @@ export default function Profile() {
   }, [dbUser, showToast]);
 
   const handleChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({
-      ...formData,
-      [e.target.name]: value,
-    });
+    if (e.target.name === 'profile_image') {
+      const file = e.target.files[0];
+      if (file) {
+        setFormData({ ...formData, profile_image: file });
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+      setFormData({
+        ...formData,
+        [e.target.name]: value,
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -83,6 +100,7 @@ export default function Profile() {
         phone_number: formData.phone_number,
         address: formData.address,
         show_contact_info: formData.show_contact_info,
+        profile_image: formData.profile_image,
       });
       
       // Update the auth context with new user data
@@ -105,16 +123,45 @@ export default function Profile() {
       className="w-full max-w-4xl mx-auto"
     >
       {/* Profile Header */}
-      <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-purple-900 rounded-lg p-8 mb-8 border border-gray-700">
-        <div className="flex items-center gap-6">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
-            {dbUser?.first_name?.[0]?.toUpperCase() || 'U'}
+      <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-purple-900 rounded-lg p-4 sm:p-8 mb-8 border border-gray-700">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+          <div className="relative">
+            {imagePreview ? (
+              <img 
+                src={imagePreview} 
+                alt="Profile" 
+                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className={`w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg ${imagePreview ? 'hidden' : ''}`}
+            >
+              {dbUser?.first_name?.[0]?.toUpperCase() || 'U'}
+            </div>
+            {isEditing && (
+              <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 cursor-pointer shadow-lg transition">
+                <input
+                  type="file"
+                  name="profile_image"
+                  accept="image/*"
+                  onChange={handleChange}
+                  className="hidden"
+                />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </label>
+            )}
           </div>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-white mb-2">
+          <div className="flex-1 text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
               {dbUser?.first_name} {dbUser?.last_name}
             </h1>
-            <p className="text-blue-200 mb-2">{dbUser?.email}</p>
+            <p className="text-blue-200 mb-2 break-words">{dbUser?.email}</p>
             <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white">
               {dbUser?.role}
             </span>
@@ -123,13 +170,13 @@ export default function Profile() {
       </div>
 
       {/* Profile Details */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Profile Information</h2>
+      <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Profile Information</h2>
           {!isEditing && (
             <LoadingButton
               onClick={() => setIsEditing(true)}
-              className="px-6 py-2"
+              className="px-6 py-2 w-full sm:w-auto"
             >
               Edit Profile
             </LoadingButton>
@@ -229,11 +276,11 @@ export default function Profile() {
               </>
             )}
             
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <LoadingButton
                 type="submit"
                 loading={loading}
-                className="px-6 py-2"
+                className="px-6 py-2 w-full sm:w-auto"
               >
                 Save Changes
               </LoadingButton>
@@ -251,7 +298,7 @@ export default function Profile() {
                     show_contact_info: dbUser?.show_contact_info || false,
                   });
                 }}
-                className="px-6 py-2"
+                className="px-6 py-2 w-full sm:w-auto"
               >
                 Cancel
               </LoadingButton>
@@ -292,11 +339,13 @@ export default function Profile() {
       </div>
 
       {/* Booking History Section */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mt-8">
-        <div className="flex items-center gap-2 mb-6">
-          <CalendarIcon className="w-6 h-6 text-blue-400" />
-          <h2 className="text-2xl font-bold text-white">Booking History</h2>
-          <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white">
+      <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 shadow-lg mt-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2 mb-6">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Booking History</h2>
+          </div>
+          <span className="px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold text-white sm:ml-auto">
             {bookings.length} {bookings.length === 1 ? 'booking' : 'bookings'}
           </span>
         </div>

@@ -2046,12 +2046,11 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <BookingTrendsChart data={bookingTrendsData} />
                     <UserDistributionChart data={analytics.users.by_role || []} />
+                    <BookingStatusChart data={analytics.bookings.by_status || []} />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <BookingStatusChart data={analytics.bookings.by_status || []} />
                     <ServiceCategoryChart data={analytics.services.by_category || []} />
                   </div>
 
