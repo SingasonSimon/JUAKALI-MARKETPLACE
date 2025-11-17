@@ -334,6 +334,35 @@ export default function Profile() {
                 {dbUser?.role || 'N/A'}
               </span>
             </div>
+            
+            {dbUser?.role === 'SEEKER' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Phone Number
+                  </label>
+                  <p className="text-white text-lg">{dbUser?.phone_number || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Address
+                  </label>
+                  <p className="text-white text-lg whitespace-pre-wrap">{dbUser?.address || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Contact Information Visibility
+                  </label>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                    dbUser?.show_contact_info 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-gray-600 text-gray-300'
+                  }`}>
+                    {dbUser?.show_contact_info ? 'Visible to Providers' : 'Hidden from Providers'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
