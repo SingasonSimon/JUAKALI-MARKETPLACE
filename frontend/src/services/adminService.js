@@ -198,6 +198,57 @@ const updateComplaint = async (complaintId, complaintData) => {
   }
 };
 
+/**
+ * Get all reviews (admin only)
+ */
+const getAllReviews = async () => {
+  try {
+    const { data } = await apiClient.get('/reviews/');
+    return data;
+  } catch (error) {
+    console.error("Error fetching reviews:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get review by ID (admin only)
+ */
+const getReview = async (reviewId) => {
+  try {
+    const { data } = await apiClient.get(`/reviews/${reviewId}/`);
+    return data;
+  } catch (error) {
+    console.error("Error fetching review:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Update review (admin only)
+ */
+const updateReview = async (reviewId, reviewData) => {
+  try {
+    const { data } = await apiClient.patch(`/reviews/${reviewId}/`, reviewData);
+    return data;
+  } catch (error) {
+    console.error("Error updating review:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Delete review (admin only)
+ */
+const deleteReview = async (reviewId) => {
+  try {
+    await apiClient.delete(`/reviews/${reviewId}/`);
+  } catch (error) {
+    console.error("Error deleting review:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const adminService = {
   getAllUsers,
   getUser,
@@ -215,4 +266,8 @@ export const adminService = {
   getActionLogs,
   getAllComplaints,
   updateComplaint,
+  getAllReviews,
+  getReview,
+  updateReview,
+  deleteReview,
 };
