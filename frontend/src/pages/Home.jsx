@@ -68,6 +68,18 @@ function ServiceCard({ service, index }) {
         className="block p-5 bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500"
       >
         <div className="flex flex-col h-full">
+          {service.image && (
+            <div className="mb-3 rounded-lg overflow-hidden">
+              <img 
+                src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+                alt={service.title}
+                className="w-full h-48 object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
           <div className="flex-grow">
             <h3 className="text-lg font-semibold text-white mb-2 min-h-[3rem]">{service.title}</h3>
             <p className="text-gray-400 text-sm mb-3 line-clamp-3">{service.description}</p>

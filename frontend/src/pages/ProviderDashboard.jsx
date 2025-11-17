@@ -12,7 +12,8 @@ import {
   CheckBadgeIcon,
   EnvelopeIcon,
   ExclamationTriangleIcon,
-  StarIcon
+  StarIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
@@ -33,12 +34,27 @@ function CreateServiceForm({ categories, onServiceCreated, onClose }) {
     description: '',
     price: '',
     category: '',
+    image: null,
   });
+  const [imagePreview, setImagePreview] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'image') {
+      const file = e.target.files[0];
+      if (file) {
+        setFormData({ ...formData, image: file });
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -49,7 +65,8 @@ function CreateServiceForm({ categories, onServiceCreated, onClose }) {
     try {
       const newService = await serviceService.createService(formData);
       onServiceCreated(newService);
-      setFormData({ title: '', description: '', price: '', category: '' });
+      setFormData({ title: '', description: '', price: '', category: '', image: null });
+      setImagePreview(null);
       if (onClose) onClose();
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to create service.');
@@ -119,6 +136,22 @@ function CreateServiceForm({ categories, onServiceCreated, onClose }) {
         </select>
       </div>
       
+      <div>
+        <label htmlFor="image" className={labelStyle}>Service Image (Optional)</label>
+        <input 
+          type="file" 
+          name="image" 
+          accept="image/*"
+          onChange={handleChange} 
+          className={inputStyle}
+        />
+        {imagePreview && (
+          <div className="mt-2">
+            <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg border border-gray-600" />
+          </div>
+        )}
+      </div>
+      
       {error && <p className="text-red-500 text-sm">{error}</p>}
       
       <div className="flex gap-2">
@@ -151,7 +184,9 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
     description: service?.description || '',
     price: service?.price || '',
     category: service?.category || '',
+    image: null,
   });
+  const [imagePreview, setImagePreview] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -162,14 +197,38 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
         description: service.description,
         price: service.price,
         category: service.category,
+        image: null,
       });
+      // Set preview to existing image if available
+      if (service.image) {
+        // If it's already a full URL, use it; otherwise construct it
+        const imageUrl = service.image.startsWith('http') 
+          ? service.image 
+          : `http://localhost:8000${service.image}`;
+        setImagePreview(imageUrl);
+      } else {
+        setImagePreview(null);
+      }
     }
   }, [service]);
 
   if (!isOpen || !service) return null;
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'image') {
+      const file = e.target.files[0];
+      if (file) {
+        setFormData({ ...formData, image: file });
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -264,6 +323,23 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
             </select>
           </div>
           
+          <div>
+            <label htmlFor="edit-image" className={labelStyle}>Service Image (Optional)</label>
+            <input 
+              id="edit-image"
+              type="file" 
+              name="image" 
+              accept="image/*"
+              onChange={handleChange} 
+              className={inputStyle}
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg border border-gray-600" />
+              </div>
+            )}
+          </div>
+          
           {error && <p className="text-red-500 text-sm">{error}</p>}
           
           <div className="flex gap-4 pt-4">
@@ -296,6 +372,18 @@ function ServiceCard({ service, onEdit, onDelete, isDeleting = false, isEditing 
       whileHover={{ y: -2 }}
       className="p-4 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg"
     >
+      {service.image && (
+        <div className="mb-3 rounded-lg overflow-hidden">
+          <img 
+            src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+            alt={service.title}
+            className="w-full h-40 object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-white mb-2">{service.title}</h3>
@@ -380,6 +468,18 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
         <p><span className="font-semibold text-gray-300">Time:</span> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         <p><span className="font-semibold text-gray-300">Booked on:</span> {new Date(booking.created_at).toLocaleDateString()}</p>
       </div>
+
+      {booking.seeker_contact_info && (
+        <div className="p-3 mb-3 bg-blue-900/30 border border-blue-700 rounded-lg text-sm">
+          <p className="font-semibold text-blue-300 mb-2">Seeker Contact Information:</p>
+          {booking.seeker_contact_info.phone_number && (
+            <p className="text-blue-100"><span className="font-semibold">Phone:</span> {booking.seeker_contact_info.phone_number}</p>
+          )}
+          {booking.seeker_contact_info.address && (
+            <p className="text-blue-100 mt-1"><span className="font-semibold">Address:</span> {booking.seeker_contact_info.address}</p>
+          )}
+        </div>
+      )}
 
       {awaitingAdmin && (
         <div className="p-3 mb-3 bg-orange-900/30 border border-orange-700 rounded-lg text-sm text-orange-100">

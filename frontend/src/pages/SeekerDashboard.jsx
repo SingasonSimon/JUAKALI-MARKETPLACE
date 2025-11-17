@@ -13,7 +13,9 @@ import {
   AcademicCapIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  UserCircleIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
@@ -148,8 +150,27 @@ function BookingModal({ service, isOpen, onClose, onConfirm, loading }) {
 
 // Enhanced Service Card Component
 function ServiceCard({ service, onBook }) {
+  // Helper function to get image URL
+  const getImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    return `http://localhost:8000${image}`;
+  };
+
   return (
       <div className="p-6 bg-gray-800 shadow-md hover:shadow-xl transition-all duration-200 flex flex-col border border-gray-700 hover:border-blue-500 rounded-lg">
+      {service.image && (
+        <div className="mb-3 rounded-lg overflow-hidden">
+          <img 
+            src={getImageUrl(service.image)}
+            alt={service.title}
+            className="w-full h-48 object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
       <div className="flex-grow">
         <Link to={`/services/${service.id}`} className="block mb-2">
           <h3 className="text-xl font-semibold text-white hover:text-blue-400 transition">
@@ -202,48 +223,81 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
     'COMPLETED': 'Completed',
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    return `http://localhost:8000${image}`;
+  };
+
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="p-4 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg"
+      className="p-5 bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-700 hover:border-blue-500 rounded-lg h-full flex flex-col"
     >
+      {/* Service Image */}
+      {service_details.image && (
+        <div className="mb-4 rounded-lg overflow-hidden">
+          <img 
+            src={getImageUrl(service_details.image)}
+            alt={service_details.title}
+            className="w-full h-40 object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      
       <div className="flex justify-between items-start mb-3">
         <Link to={`/services/${service_details.id}`} className="flex-1">
-          <h3 className="text-lg font-semibold text-white hover:text-blue-400 transition">
+          <h3 className="text-lg font-semibold text-white hover:text-blue-400 transition mb-1">
             {service_details.title}
           </h3>
         </Link>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[booking.status] || 'bg-gray-700 text-gray-300'}`}>
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ml-2 ${statusColors[booking.status] || 'bg-gray-700 text-gray-300'}`}>
           {statusLabels[booking.status] || booking.status}
         </span>
       </div>
       
-      <div className="space-y-1.5 text-sm text-gray-300 mb-4">
-        <p>
-          <span className="font-semibold text-gray-300">Date:</span> {bookingDate.toLocaleDateString()}
-        </p>
-        <p>
-          <span className="font-semibold text-gray-300">Time:</span> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-        <p>
-          <span className="font-semibold text-gray-300">Provider:</span> {service_details.provider_details?.first_name} {service_details.provider_details?.last_name}
-        </p>
-        <p>
-          <span className="font-semibold text-gray-300">Price:</span> KES {parseFloat(service_details.price).toLocaleString()}
-        </p>
+      <div className="space-y-2 text-sm text-gray-300 mb-4 flex-grow">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 text-gray-400" />
+          <p>
+            <span className="font-semibold text-gray-300">Date:</span> {bookingDate.toLocaleDateString()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ClockIcon className="w-4 h-4 text-gray-400" />
+          <p>
+            <span className="font-semibold text-gray-300">Time:</span> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <UserCircleIcon className="w-4 h-4 text-gray-400" />
+          <p>
+            <span className="font-semibold text-gray-300">Provider:</span> {service_details.provider_details?.first_name} {service_details.provider_details?.last_name}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <BanknotesIcon className="w-4 h-4 text-gray-400" />
+          <p>
+            <span className="font-semibold text-gray-300">Price:</span> <span className="text-blue-400 font-bold">KES {parseFloat(service_details.price).toLocaleString()}</span>
+          </p>
+        </div>
       </div>
 
-      <div className="flex gap-2 flex-col">
+      <div className="flex gap-2 flex-col mt-auto">
         {booking.status === 'CONFIRMED' && !booking.is_paid && (
           <LoadingButton
             onClick={() => onPayNow && onPayNow(booking)}
-            className="w-full py-2 px-3 text-xs bg-green-600 hover:bg-green-700"
+            className="w-full py-2.5 px-4 text-sm font-semibold bg-green-600 hover:bg-green-700"
           >
             Pay Now
           </LoadingButton>
         )}
         {booking.status === 'CONFIRMED' && booking.is_paid && (
-          <div className="text-xs text-green-400 font-semibold mb-2 text-center">
+          <div className="text-sm text-green-400 font-semibold mb-2 text-center py-2 bg-green-900/20 rounded-lg border border-green-700">
             ✓ Payment Completed
           </div>
         )}
@@ -253,15 +307,15 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
             onClick={() => onCancel(booking.id)}
             loading={isCanceling}
             variant="danger"
-            className="flex-1 py-2 px-3 text-xs"
+            className="flex-1 py-2 px-3 text-sm"
           >
-            Cancel Booking
+            Cancel
           </LoadingButton>
           )}
           <LoadingButton
             onClick={() => onViewDetails(booking)}
             variant="secondary"
-            className="py-2 px-3 text-xs"
+            className="flex-1 py-2 px-3 text-sm"
           >
             View Details
           </LoadingButton>
@@ -759,115 +813,126 @@ export default function SeekerDashboard() {
         </div>
       </motion.div>
 
+      {/* My Bookings Section - Full Width */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        className="space-y-6"
       >
-        {/* Left Column: My Bookings */}
-        <motion.div variants={itemVariants} className="lg:col-span-1">
-          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <ClipboardDocumentListIcon className="w-6 h-6" />
             <span>My Bookings</span>
-            <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
+            <span className="ml-3 px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
               {sortedBookings.length}
             </span>
           </h2>
-          <div className="space-y-4 max-h-[calc(100vh-400px)] overflow-y-auto hide-scrollbar">
-            {sortedBookings.length > 0 ? (
-              sortedBookings.map((booking, index) => (
-                <motion.div
-                  key={booking.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <MyBookingCard 
-                    booking={booking} 
-                    onCancel={handleCancelBookingClick}
-                    onViewDetails={handleViewBookingDetails}
-                    isCanceling={cancelingBookingId === booking.id}
-                    onPayNow={(booking) => {
-                      setSelectedBookingForPayment(booking);
-                      setIsPaymentModalOpen(true);
-                    }}
-                  />
-                </motion.div>
-              ))
-            ) : (
+        </div>
+        
+        {sortedBookings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sortedBookings.map((booking, index) => (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
+                key={booking.id}
+                variants={itemVariants}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                <EnvelopeIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
-                <p className="text-gray-300 text-sm">Browse services and book one to get started!</p>
+                <MyBookingCard 
+                  booking={booking} 
+                  onCancel={handleCancelBookingClick}
+                  onViewDetails={handleViewBookingDetails}
+                  isCanceling={cancelingBookingId === booking.id}
+                  onPayNow={(booking) => {
+                    setSelectedBookingForPayment(booking);
+                    setIsPaymentModalOpen(true);
+                  }}
+                />
               </motion.div>
-            )}
+            ))}
           </div>
-        </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
+          >
+            <EnvelopeIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+            <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
+            <p className="text-gray-300 text-sm">Browse services and book one to get started!</p>
+          </motion.div>
+        )}
+      </motion.div>
 
-        {/* Right Column: Available Services */}
-        <motion.div variants={itemVariants} className="lg:col-span-2">
-          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+      {/* Available Services Section - Full Width */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <WrenchScrewdriverIcon className="w-6 h-6" />
             <span>Available Services</span>
-            <span className="ml-auto px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
+            <span className="ml-3 px-3 py-1 bg-blue-600 rounded-full text-sm font-semibold">
               {filteredServices.length}
             </span>
           </h2>
-            {paginatedServices.length > 0 ? (
-              <>
+        </div>
+        {paginatedServices.length > 0 ? (
+          <>
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {paginatedServices.map((service, index) => (
                 <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  key={service.id}
+                  variants={itemVariants}
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  {paginatedServices.map((service, index) => (
-                    <motion.div
-                      key={service.id}
-                      variants={itemVariants}
-                      whileHover={{ y: -2 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ServiceCard 
-                        service={service} 
-                        onBook={handleBookService} 
-                      />
-                    </motion.div>
-                  ))}
-                </motion.div>
-                {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalItems={filteredServices.length}
-                    onItemsPerPageChange={(newItemsPerPage) => {
-                      setItemsPerPage(newItemsPerPage);
-                      setCurrentPage(1);
-                    }}
+                  <ServiceCard 
+                    service={service} 
+                    onBook={handleBookService} 
                   />
-                )}
-              </>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
-              >
-                <div className="flex justify-center mb-4">
-                  <MagnifyingGlassIcon className="w-16 h-16 text-gray-400" />
-                </div>
-                <p className="text-gray-300 text-lg mb-2 font-semibold">No services found</p>
-                <p className="text-gray-300 text-sm">Try adjusting your search or filters</p>
-              </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+            {totalPages > 1 && (
+              <div className="mt-6">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredServices.length}
+                  onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             )}
-        </motion.div>
+          </>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-12 bg-gray-800 text-center border border-gray-700 rounded-lg"
+          >
+            <div className="flex justify-center mb-4">
+              <MagnifyingGlassIcon className="w-16 h-16 text-gray-400" />
+            </div>
+            <p className="text-gray-300 text-lg mb-2 font-semibold">No services found</p>
+            <p className="text-gray-300 text-sm">Try adjusting your search or filters</p>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Complaints Section */}

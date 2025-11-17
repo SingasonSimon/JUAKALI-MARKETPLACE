@@ -43,14 +43,27 @@ const getServiceById = async (serviceId) => {
 /**
  * Creates a new service.
  * This can only be done by an authenticated PROVIDER.
- * @param {object} serviceData - { title, description, price, category }
+ * @param {object} serviceData - { title, description, price, category, image }
  * Note: 'category' should be the ID of the category.
+ * 'image' should be a File object if provided.
  */
 const createService = async (serviceData) => {
   try {
-    // The provider token is added automatically by the interceptor.
-    // Our backend uses the token to set the 'provider' field.
-    const { data } = await apiClient.post('/services/', serviceData);
+    // If image is provided, use FormData
+    const formData = new FormData();
+    formData.append('title', serviceData.title);
+    formData.append('description', serviceData.description);
+    formData.append('price', serviceData.price);
+    formData.append('category', serviceData.category);
+    if (serviceData.image) {
+      formData.append('image', serviceData.image);
+    }
+    
+    const { data } = await apiClient.post('/services/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return data;
   } catch (error) {
     console.error("Error creating service:", error.response?.data || error.message);
@@ -62,11 +75,34 @@ const createService = async (serviceData) => {
  * Updates an existing service.
  * This can only be done by the PROVIDER who owns the service.
  * @param {string|number} serviceId - The ID of the service to update.
- * @param {object} serviceData - The fields to update (e.g., { title, price }).
+ * @param {object} serviceData - The fields to update (e.g., { title, price, image }).
+ * 'image' should be a File object if provided.
  */
 const updateService = async (serviceId, serviceData) => {
   try {
-    const { data } = await apiClient.patch(`/services/${serviceId}/`, serviceData);
+    // If image is provided, use FormData
+    const hasImage = serviceData.image instanceof File;
+    let dataToSend;
+    
+    if (hasImage) {
+      const formData = new FormData();
+      Object.keys(serviceData).forEach(key => {
+        if (key === 'image' && serviceData[key]) {
+          formData.append('image', serviceData[key]);
+        } else if (serviceData[key] !== null && serviceData[key] !== undefined) {
+          formData.append(key, serviceData[key]);
+        }
+      });
+      dataToSend = formData;
+    } else {
+      dataToSend = serviceData;
+    }
+    
+    const { data } = await apiClient.patch(`/services/${serviceId}/`, dataToSend, hasImage ? {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    } : {});
     return data;
   } catch (error) {
     console.error("Error updating service:", error.response?.data || error.message);

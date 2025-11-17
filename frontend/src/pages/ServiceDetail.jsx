@@ -26,6 +26,7 @@ export default function ServiceDetail() {
   const [reviews, setReviews] = useState([]);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [userReview, setUserReview] = useState(null);
+  const [hasBooked, setHasBooked] = useState(false);
 
   useEffect(() => {
     const loadService = async () => {
@@ -44,6 +45,22 @@ export default function ServiceDetail() {
           if (dbUser && dbUser.role === 'SEEKER') {
             const myReview = reviewsData.find(r => r.seeker === dbUser.id);
             setUserReview(myReview || null);
+            
+            // Check if user has booked this service (CONFIRMED or COMPLETED)
+            try {
+              const myBookings = await bookingService.getMyBookings();
+              const hasBookedService = myBookings.some(
+                booking => {
+                  const serviceId = booking.service_details?.id || booking.service;
+                  return serviceId === parseInt(id) && 
+                    (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED');
+                }
+              );
+              setHasBooked(hasBookedService);
+            } catch (err) {
+              console.error('Failed to check bookings:', err);
+              setHasBooked(false);
+            }
           }
         } catch (err) {
           console.error('Failed to load reviews:', err);
@@ -149,6 +166,7 @@ export default function ServiceDetail() {
 
   const isProvider = dbUser?.role === 'PROVIDER' && dbUser?.id === service.provider;
   const canBook = dbUser?.role === 'SEEKER' && !isProvider;
+  const canReview = canBook && hasBooked;
 
   // Get today's date in YYYY-MM-DD format for min date
   const today = new Date().toISOString().split('T')[0];
@@ -183,6 +201,20 @@ export default function ServiceDetail() {
         transition={{ delay: 0.3, duration: 0.4 }}
         className="bg-gray-800 rounded shadow-xl overflow-hidden border border-gray-700"
       >
+        {/* Service Image */}
+        {service.image && (
+          <div className="w-full h-96 overflow-hidden bg-gray-900">
+            <img 
+              src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+              alt={service.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        
         {/* Service Header */}
         <div className="p-8 border-b border-gray-700">
           <div className="flex justify-between items-start mb-4">
@@ -341,13 +373,18 @@ export default function ServiceDetail() {
             <h2 className="text-2xl font-semibold text-white">
               Reviews {service.review_count > 0 && `(${service.review_count})`}
             </h2>
-            {canBook && !userReview && !showReviewForm && (
+            {canReview && !userReview && !showReviewForm && (
               <LoadingButton
                 onClick={() => setShowReviewForm(true)}
                 className="px-4 py-2"
               >
                 Write a Review
               </LoadingButton>
+            )}
+            {canBook && !hasBooked && (
+              <p className="text-gray-400 text-sm mt-2">
+                You need to book and confirm this service before you can review it.
+              </p>
             )}
           </div>
           
@@ -365,7 +402,7 @@ export default function ServiceDetail() {
           <ReviewList
             reviews={reviews}
             onUpdate={handleReviewUpdate}
-            canEdit={canBook}
+            canEdit={canReview}
           />
         </div>
       </motion.div>

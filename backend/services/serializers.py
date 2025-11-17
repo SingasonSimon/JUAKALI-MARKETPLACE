@@ -29,6 +29,10 @@ class ServiceSerializer(serializers.ModelSerializer):
     category_details = CategorySerializer(source='category', read_only=True)
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
+    # Custom field that handles both read (full URL) and write (file upload)
+    # For reads, use SerializerMethodField to return full URL
+    # For writes, we'll handle it in create/update methods
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -37,6 +41,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             'title', 
             'description', 
             'price',
+            'image',
             'provider',
             'provider_details',
             'category',
@@ -45,6 +50,49 @@ class ServiceSerializer(serializers.ModelSerializer):
             'review_count',
             'created_at',
         ]
+    
+    def get_image(self, obj):
+        """Return full image URL if image exists."""
+        if obj.image:
+            # CloudinaryField returns a full URL, but we ensure it's always a string
+            image_url = str(obj.image)
+            # If it's already a full URL (starts with http), return it
+            if image_url.startswith('http://') or image_url.startswith('https://'):
+                return image_url
+            # Otherwise, it might be a relative path - construct full URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(image_url)
+            return image_url
+        return None
+    
+    def to_internal_value(self, data):
+        """Handle image field in request data."""
+        # Store image file separately for create/update
+        ret = super().to_internal_value(data)
+        # Check request.FILES for image upload
+        request = self.context.get('request')
+        if request and hasattr(request, 'FILES') and 'image' in request.FILES:
+            ret['_image_file'] = request.FILES['image']
+        return ret
+    
+    def create(self, validated_data):
+        """Create service and handle image upload."""
+        image_file = validated_data.pop('_image_file', None)
+        service = super().create(validated_data)
+        if image_file:
+            service.image = image_file
+            service.save()
+        return service
+    
+    def update(self, instance, validated_data):
+        """Update service and handle image upload."""
+        image_file = validated_data.pop('_image_file', None)
+        service = super().update(instance, validated_data)
+        if image_file is not None:  # Allow clearing by passing null
+            service.image = image_file
+            service.save()
+        return service
         
     def validate_provider(self, value):
         """
@@ -121,6 +169,9 @@ class BookingSerializer(serializers.ModelSerializer):
     seeker_details = CustomUserSerializer(source='seeker', read_only=True)
     payment = PaymentSerializer(read_only=True)
     is_paid = serializers.ReadOnlyField()
+    
+    # Contact info (only visible if seeker has enabled it)
+    seeker_contact_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -132,10 +183,26 @@ class BookingSerializer(serializers.ModelSerializer):
             'booking_date',
             'service_details',
             'seeker_details',
+            'seeker_contact_info',
             'payment',
             'is_paid',
             'created_at',
         ]
+    
+    def get_seeker_contact_info(self, obj):
+        """Return seeker contact info only if they have enabled it."""
+        seeker = obj.seeker
+        request = self.context.get('request')
+        
+        # Only show contact info to providers or admins
+        if request and request.user.is_authenticated:
+            user = request.user
+            if user.role in ['PROVIDER', 'ADMIN'] and seeker.show_contact_info:
+                return {
+                    'phone_number': seeker.phone_number,
+                    'address': seeker.address,
+                }
+        return None
         
     def validate(self, data):
         """
@@ -185,6 +252,27 @@ class ReviewSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
+    def validate(self, data):
+        """Validate that the seeker has booked the service before allowing a review."""
+        service = data.get('service')
+        request = self.context.get('request')
+        seeker = data.get('seeker') or (request.user if request else None)
+        
+        if service and seeker:
+            # Check if the seeker has any booking for this service (completed or confirmed)
+            has_booking = Booking.objects.filter(
+                service=service,
+                seeker=seeker,
+                status__in=['CONFIRMED', 'COMPLETED']
+            ).exists()
+            
+            if not has_booking:
+                raise serializers.ValidationError(
+                    "You can only review services that you have booked and that are confirmed or completed."
+                )
+        
+        return data
+    
     def validate_rating(self, value):
         """Ensure rating is between 1 and 5."""
         if value < 1 or value > 5:
@@ -213,7 +301,13 @@ class ComplaintSerializer(serializers.ModelSerializer):
     service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), required=False, allow_null=True)
     booking = serializers.PrimaryKeyRelatedField(queryset=Booking.objects.all(), required=False, allow_null=True)
     user_details = CustomUserSerializer(source='user', read_only=True)
-    service_details = ServiceSerializer(source='service', read_only=True)
+    service_details = serializers.SerializerMethodField()
+    
+    def get_service_details(self, obj):
+        """Return service details if service exists, otherwise None."""
+        if obj.service:
+            return ServiceSerializer(obj.service, context=self.context).data
+        return None
 
     class Meta:
         model = Complaint

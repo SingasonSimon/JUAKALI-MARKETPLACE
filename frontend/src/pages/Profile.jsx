@@ -22,6 +22,9 @@ export default function Profile() {
     first_name: dbUser?.first_name || '',
     last_name: dbUser?.last_name || '',
     email: dbUser?.email || '',
+    phone_number: dbUser?.phone_number || '',
+    address: dbUser?.address || '',
+    show_contact_info: dbUser?.show_contact_info || false,
   });
 
   // Update form data when dbUser changes
@@ -31,6 +34,9 @@ export default function Profile() {
         first_name: dbUser.first_name || '',
         last_name: dbUser.last_name || '',
         email: dbUser.email || '',
+        phone_number: dbUser.phone_number || '',
+        address: dbUser.address || '',
+        show_contact_info: dbUser.show_contact_info || false,
       });
     }
   }, [dbUser]);
@@ -60,9 +66,10 @@ export default function Profile() {
   }, [dbUser, showToast]);
 
   const handleChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     });
   };
 
@@ -73,6 +80,9 @@ export default function Profile() {
       const updatedUser = await userService.updateProfile({
         first_name: formData.first_name,
         last_name: formData.last_name,
+        phone_number: formData.phone_number,
+        address: formData.address,
+        show_contact_info: formData.show_contact_info,
       });
       
       // Update the auth context with new user data
@@ -171,6 +181,54 @@ export default function Profile() {
               />
               <p className="text-gray-300 text-sm mt-1">Email cannot be changed</p>
             </div>
+            
+            {dbUser?.role === 'SEEKER' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Phone Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                    placeholder="e.g., +254 712 345 678"
+                  />
+                  <p className="text-gray-400 text-sm mt-1">Share your phone number with providers when they need to contact you</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Address (Optional)
+                  </label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    rows="3"
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                    placeholder="Your address"
+                  />
+                  <p className="text-gray-400 text-sm mt-1">Share your address with providers when needed</p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    name="show_contact_info"
+                    checked={formData.show_contact_info}
+                    onChange={handleChange}
+                    className="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                  />
+                  <label className="text-sm font-medium text-gray-300">
+                    Allow providers to see my contact information in booking details
+                  </label>
+                </div>
+              </>
+            )}
+            
             <div className="flex gap-4">
               <LoadingButton
                 type="submit"
@@ -188,6 +246,9 @@ export default function Profile() {
                     first_name: dbUser?.first_name || '',
                     last_name: dbUser?.last_name || '',
                     email: dbUser?.email || '',
+                    phone_number: dbUser?.phone_number || '',
+                    address: dbUser?.address || '',
+                    show_contact_info: dbUser?.show_contact_info || false,
                   });
                 }}
                 className="px-6 py-2"
