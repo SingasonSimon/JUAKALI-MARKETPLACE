@@ -5,15 +5,18 @@ import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { reviewService } from '../services/reviewService';
 import { useToast } from '../context/ToastContext';
 import ConfirmationDialog from './ConfirmationDialog';
+import LoadingButton from './LoadingButton';
 
 export default function ReviewList({ reviews, onUpdate, canEdit = false, readonly = false }) {
   const { showToast } = useToast();
   const [deleteReviewId, setDeleteReviewId] = useState(null);
   const [editingReview, setEditingReview] = useState(null);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
 
   const handleDelete = async () => {
     if (!deleteReviewId) return;
     
+    setDeletingReviewId(deleteReviewId);
     try {
       await reviewService.deleteReview(deleteReviewId);
       showToast('Review deleted successfully', 'success');
@@ -22,6 +25,8 @@ export default function ReviewList({ reviews, onUpdate, canEdit = false, readonl
     } catch (error) {
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to delete review';
       showToast(errorMsg, 'error');
+    } finally {
+      setDeletingReviewId(null);
     }
   };
 
@@ -62,18 +67,21 @@ export default function ReviewList({ reviews, onUpdate, canEdit = false, readonl
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditingReview(review)}
-                  className="p-2 text-blue-400 hover:text-blue-300 transition"
+                  disabled={deletingReviewId === review.id || editingReview?.id === review.id}
+                  className="p-2 text-blue-400 hover:text-blue-300 transition disabled:opacity-50"
                   title="Edit review"
                 >
                   <PencilIcon className="w-4 h-4" />
                 </button>
-                <button
+                <LoadingButton
                   onClick={() => setDeleteReviewId(review.id)}
+                  loading={deletingReviewId === review.id}
                   className="p-2 text-red-400 hover:text-red-300 transition"
                   title="Delete review"
+                  variant="outline"
                 >
                   <TrashIcon className="w-4 h-4" />
-                </button>
+                </LoadingButton>
               </div>
             )}
           </div>
@@ -93,6 +101,7 @@ export default function ReviewList({ reviews, onUpdate, canEdit = false, readonl
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingReviewId}
       />
       
       {!readonly && editingReview && (

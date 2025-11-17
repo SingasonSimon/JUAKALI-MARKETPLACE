@@ -4,6 +4,7 @@ import { HandRaisedIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import LoadingButton from '../components/LoadingButton';
 import FormInput from '../components/FormInput';
 
@@ -13,10 +14,24 @@ export default function Login() {
     password: '',
   });
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  
+  // Use the new loading system
+  const { execute: handleLogin, loading } = useAsyncOperation(
+    async (email, password) => {
+      await login(email, password);
+      navigate('/dashboard');
+    },
+    {
+      operationId: 'login',
+      showGlobalLoading: false, // Use button loading instead
+      showToastOnError: false, // Handle errors manually
+      showToastOnSuccess: true,
+      successMessage: 'Login successful!',
+    }
+  );
 
   const handleChange = (e) => {
     setFormData({
@@ -49,22 +64,16 @@ export default function Login() {
       return;
     }
     
-    setLoading(true);
-    
     try {
-      await login(formData.email, formData.password);
-      showToast('Login successful!', 'success');
-      navigate('/dashboard'); 
+      await handleLogin(formData.email, formData.password);
     } catch (err) {
       const errorMessage = err.message || 'Login failed. Please try again.';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setErrors({ password: 'Invalid email or password' });
       } else {
         setErrors({ email: errorMessage });
       }
       showToast(errorMessage, 'error');
-    } finally {
-      setLoading(false);
     }
   };
 

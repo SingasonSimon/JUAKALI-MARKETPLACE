@@ -180,7 +180,7 @@ function ServiceCard({ service, onBook }) {
 }
 
 // Enhanced Booking Card Component
-function MyBookingCard({ booking, onCancel, onViewDetails }) {
+function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, onPayNow }) {
   const { service_details } = booking;
   const bookingDate = new Date(booking.booking_date);
   
@@ -236,10 +236,7 @@ function MyBookingCard({ booking, onCancel, onViewDetails }) {
       <div className="flex gap-2 flex-col">
         {booking.status === 'CONFIRMED' && !booking.is_paid && (
           <LoadingButton
-            onClick={() => {
-              setSelectedBookingForPayment(booking);
-              setIsPaymentModalOpen(true);
-            }}
+            onClick={() => onPayNow && onPayNow(booking)}
             className="w-full py-2 px-3 text-xs bg-green-600 hover:bg-green-700"
           >
             Pay Now
@@ -251,9 +248,10 @@ function MyBookingCard({ booking, onCancel, onViewDetails }) {
           </div>
         )}
         <div className="flex gap-2">
-          {booking.status !== 'CANCELED' && booking.status !== 'COMPLETED' && (
+          {['PENDING', 'PENDING_ADMIN_APPROVAL'].includes(booking.status) && (
           <LoadingButton
             onClick={() => onCancel(booking.id)}
+            loading={isCanceling}
             variant="danger"
             className="flex-1 py-2 px-3 text-xs"
           >
@@ -395,6 +393,7 @@ export default function SeekerDashboard() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedBookingForPayment, setSelectedBookingForPayment] = useState(null);
+  const [cancelingBookingId, setCancelingBookingId] = useState(null);
   
   // Complaints states
   const [showComplaintForm, setShowComplaintForm] = useState(false);
@@ -537,6 +536,7 @@ export default function SeekerDashboard() {
   const handleCancelBooking = async () => {
     if (!cancelBookingId) return;
     
+    setCancelingBookingId(cancelBookingId);
     try {
       const updatedBooking = await bookingService.updateBooking(cancelBookingId, {
         status: 'CANCELED'
@@ -552,6 +552,8 @@ export default function SeekerDashboard() {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to cancel booking.';
       showToast(errorMessage, 'error');
       console.error(err);
+    } finally {
+      setCancelingBookingId(null);
     }
   };
 
@@ -785,6 +787,11 @@ export default function SeekerDashboard() {
                     booking={booking} 
                     onCancel={handleCancelBookingClick}
                     onViewDetails={handleViewBookingDetails}
+                    isCanceling={cancelingBookingId === booking.id}
+                    onPayNow={(booking) => {
+                      setSelectedBookingForPayment(booking);
+                      setIsPaymentModalOpen(true);
+                    }}
                   />
                 </motion.div>
               ))
@@ -1039,6 +1046,7 @@ export default function SeekerDashboard() {
         confirmText="Cancel Booking"
         cancelText="Keep Booking"
         variant="danger"
+        loading={!!cancelingBookingId}
       />
     </motion.div>
   );

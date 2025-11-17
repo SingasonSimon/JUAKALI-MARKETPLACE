@@ -38,18 +38,18 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   const { showToast } = useToast();
   
   // Try to get djangoAdminUser from outlet context, fallback to prop
-  let outletContext = null;
-  try {
-    outletContext = useOutletContext();
-  } catch (e) {
-    // Not in outlet context, use prop
-  }
-  
+  // useOutletContext must be called unconditionally (Rules of Hooks)
+  // In React Router v6.4+, it returns undefined if not in an Outlet context
+  // When rendered from DashboardRedirect (not in Outlet), it will be undefined
+  // When rendered from DjangoAdminPage (in Outlet), it will have the context
+  const outletContext = useOutletContext();
   const djangoAdminUser = outletContext?.djangoAdminUser || propDjangoAdminUser;
   
   // Use Django admin user if provided, otherwise use Firebase user
   const dbUser = djangoAdminUser || firebaseDbUser;
   const isDjangoAdmin = !!djangoAdminUser;
+  
+  // All hooks must be called before any conditional returns (Rules of Hooks)
   const [users, setUsers] = useState([]);
   const [services, setServices] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -83,6 +83,20 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   const [editingReview, setEditingReview] = useState(null);
   const [deleteReviewId, setDeleteReviewId] = useState(null);
   const [reviewFormData, setReviewFormData] = useState({ rating: '', comment: '' });
+  
+  // Loading states for all operations
+  const [approvingBookingId, setApprovingBookingId] = useState(null);
+  const [deletingBookingId, setDeletingBookingId] = useState(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState(null);
+  const [deletingServiceId, setDeletingServiceId] = useState(null);
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
+  const [updatingReviewId, setUpdatingReviewId] = useState(null);
+  const [updatingComplaintId, setUpdatingComplaintId] = useState(null);
+  const [activatingUserId, setActivatingUserId] = useState(null);
+  const [updatingUserId, setUpdatingUserId] = useState(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
+  const [updatingServiceId, setUpdatingServiceId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -129,13 +143,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
       adminApi.getReports(reportType).then(setReports).catch(console.error);
     } else if (activeTab === 'audit-logs') {
       adminApi.getActionLogs().then(setActionLogs).catch(console.error);
-    } else if (activeTab === 'reviews' && reviews.length === 0) {
+    } else if (activeTab === 'reviews' && (reviews || []).length === 0) {
       adminApi.getAllReviews().then(setReviews).catch(() => setReviews([]));
     } else if (activeTab === 'complaints') {
       // Refresh complaints when complaints tab is active
       adminApi.getAllComplaints().then(setComplaints).catch(() => setComplaints([]));
     }
-  }, [activeTab, reportType, isDjangoAdmin]);
+  }, [activeTab, reportType, isDjangoAdmin, analytics, reviews]);
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
@@ -150,12 +164,12 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
       if (editingCategory) {
         // Update existing category
         const updated = await categoryApi.updateCategory(editingCategory.id, categoryFormData);
-        setCategories(categories.map(cat => cat.id === updated.id ? updated : cat));
+        setCategories((categories || []).map(cat => cat.id === updated.id ? updated : cat));
         showToast('Category updated successfully', 'success');
       } else {
         // Create new category
         const newCategory = await categoryApi.createCategory(categoryFormData);
-        setCategories([...categories, newCategory]);
+        setCategories([...(categories || []), newCategory]);
         showToast('Category created successfully', 'success');
       }
       setCategoryFormData({ name: '' });
@@ -182,7 +196,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     const categoryApi = isDjangoAdmin ? djangoAdminService : categoryService;
     try {
       await categoryApi.deleteCategory(deleteCategoryId);
-      setCategories(categories.filter(cat => cat.id !== deleteCategoryId));
+      setCategories((categories || []).filter(cat => cat.id !== deleteCategoryId));
       showToast('Category deleted successfully', 'success');
       setDeleteCategoryId(null);
     } catch (err) {
@@ -206,43 +220,52 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingUser) return;
 
+    setUpdatingUserId(editingUser.id);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.updateUser(editingUser.id, userFormData);
-      setUsers(users.map(u => u.id === updated.id ? updated : u));
+      setUsers((users || []).map(u => u.id === updated.id ? updated : u));
       showToast('User updated successfully', 'success');
       setEditingUser(null);
       setUserFormData({ role: '', first_name: '', last_name: '' });
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to update user';
       showToast(errorMsg, 'error');
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
   const handleDeleteUser = async () => {
     if (!deleteUserId) return;
     
+    setDeletingUserId(deleteUserId);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       await adminApi.deleteUser(deleteUserId);
-      setUsers(users.filter(u => u.id !== deleteUserId));
+      setUsers((users || []).filter(u => u.id !== deleteUserId));
       showToast('User deleted successfully', 'success');
       setDeleteUserId(null);
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete user';
       showToast(errorMsg, 'error');
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
   const handleActivateUser = async (userId) => {
+    setActivatingUserId(userId);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.activateUser(userId);
-      setUsers(users.map(u => u.id === updated.id ? updated : u));
+      setUsers((users || []).map(u => u.id === updated.id ? updated : u));
       showToast(`User ${updated.is_active ? 'activated' : 'deactivated'} successfully`, 'success');
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to update user status';
       showToast(errorMsg, 'error');
+    } finally {
+      setActivatingUserId(null);
     }
   };
 
@@ -260,31 +283,37 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingService) return;
 
+    setUpdatingServiceId(editingService.id);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.updateService(editingService.id, serviceFormData);
-      setServices(services.map(s => s.id === updated.id ? updated : s));
+      setServices((services || []).map(s => s.id === updated.id ? updated : s));
       showToast('Service updated successfully', 'success');
       setEditingService(null);
       setServiceFormData({ title: '', description: '', price: '', category: '' });
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to update service';
       showToast(errorMsg, 'error');
+    } finally {
+      setUpdatingServiceId(null);
     }
   };
 
   const handleDeleteService = async () => {
     if (!deleteServiceId) return;
     
+    setDeletingServiceId(deleteServiceId);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       await adminApi.deleteService(deleteServiceId);
-      setServices(services.filter(s => s.id !== deleteServiceId));
+      setServices((services || []).filter(s => s.id !== deleteServiceId));
       showToast('Service deleted successfully', 'success');
       setDeleteServiceId(null);
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete service';
       showToast(errorMsg, 'error');
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
@@ -292,6 +321,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingComplaint) return;
 
+    setUpdatingComplaintId(editingComplaint.id);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.updateComplaint(editingComplaint.id, complaintFormData);
@@ -304,6 +334,8 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to update complaint';
       showToast(errorMsg, 'error');
+    } finally {
+      setUpdatingComplaintId(null);
     }
   };
 
@@ -311,7 +343,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.updateBooking(bookingId, { status });
-      setBookings(bookings.map(b => b.id === updated.id ? updated : b));
+      setBookings((bookings || []).map(b => b.id === updated.id ? updated : b));
       showToast(successMessage, 'success');
       return updated;
     } catch (err) {
@@ -322,11 +354,16 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   };
 
   const handleApproveBooking = async (bookingId) => {
-    await updateBookingStatus(
-      bookingId,
-      'ADMIN_APPROVED',
-      'Booking approved. Provider can now confirm.'
-    );
+    setApprovingBookingId(bookingId);
+    try {
+      await updateBookingStatus(
+        bookingId,
+        'ADMIN_APPROVED',
+        'Booking approved. Provider can now confirm.'
+      );
+    } finally {
+      setApprovingBookingId(null);
+    }
   };
 
   const handleEditBooking = (booking) => {
@@ -338,27 +375,33 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingBooking) return;
 
+    setUpdatingBookingId(editingBooking.id);
     try {
       await updateBookingStatus(editingBooking.id, bookingFormData.status);
       setEditingBooking(null);
       setBookingFormData({ status: '' });
     } catch (err) {
       // errors handled in helper
+    } finally {
+      setUpdatingBookingId(null);
     }
   };
 
   const handleDeleteBooking = async () => {
     if (!deleteBookingId) return;
     
+    setDeletingBookingId(deleteBookingId);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       await adminApi.deleteBooking(deleteBookingId);
-      setBookings(bookings.filter(b => b.id !== deleteBookingId));
+      setBookings((bookings || []).filter(b => b.id !== deleteBookingId));
       showToast('Booking deleted successfully', 'success');
       setDeleteBookingId(null);
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete booking';
       showToast(errorMsg, 'error');
+    } finally {
+      setDeletingBookingId(null);
     }
   };
 
@@ -371,34 +414,40 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
     e.preventDefault();
     if (!editingReview) return;
 
+    setUpdatingReviewId(editingReview.id);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       const updated = await adminApi.updateReview(editingReview.id, {
         rating: parseInt(reviewFormData.rating),
         comment: reviewFormData.comment
       });
-      setReviews(reviews.map(r => r.id === updated.id ? updated : r));
+      setReviews((reviews || []).map(r => r.id === updated.id ? updated : r));
       showToast('Review updated successfully', 'success');
       setEditingReview(null);
       setReviewFormData({ rating: '', comment: '' });
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to update review';
       showToast(errorMsg, 'error');
+    } finally {
+      setUpdatingReviewId(null);
     }
   };
 
   const handleDeleteReview = async () => {
     if (!deleteReviewId) return;
     
+    setDeletingReviewId(deleteReviewId);
     const adminApi = isDjangoAdmin ? djangoAdminService : adminService;
     try {
       await adminApi.deleteReview(deleteReviewId);
-      setReviews(reviews.filter(r => r.id !== deleteReviewId));
+      setReviews((reviews || []).filter(r => r.id !== deleteReviewId));
       showToast('Review deleted successfully', 'success');
       setDeleteReviewId(null);
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete review';
       showToast(errorMsg, 'error');
+    } finally {
+      setDeletingReviewId(null);
     }
   };
 
@@ -519,21 +568,21 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
 
   // Calculate statistics
   const stats = {
-    totalUsers: users.length,
-    activeUsers: users.filter(u => u.is_active).length,
-    providers: users.filter(u => u.role === 'PROVIDER').length,
-    seekers: users.filter(u => u.role === 'SEEKER').length,
-    admins: users.filter(u => u.role === 'ADMIN').length,
-    totalServices: services.length,
-    totalBookings: bookings.length,
+    totalUsers: (users || []).length,
+    activeUsers: (users || []).filter(u => u.is_active).length,
+    providers: (users || []).filter(u => u.role === 'PROVIDER').length,
+    seekers: (users || []).filter(u => u.role === 'SEEKER').length,
+    admins: (users || []).filter(u => u.role === 'ADMIN').length,
+    totalServices: (services || []).length,
+    totalBookings: (bookings || []).length,
   };
 
   const bookingStatusCounts = useMemo(() => ({
-    pendingAdmin: bookings.filter(b => b.status === 'PENDING_ADMIN_APPROVAL').length,
-    adminApproved: bookings.filter(b => b.status === 'ADMIN_APPROVED').length,
-    confirmed: bookings.filter(b => b.status === 'CONFIRMED').length,
-    completed: bookings.filter(b => b.status === 'COMPLETED').length,
-    canceled: bookings.filter(b => b.status === 'CANCELED').length,
+    pendingAdmin: (bookings || []).filter(b => b.status === 'PENDING_ADMIN_APPROVAL').length,
+    adminApproved: (bookings || []).filter(b => b.status === 'ADMIN_APPROVED').length,
+    confirmed: (bookings || []).filter(b => b.status === 'CONFIRMED').length,
+    completed: (bookings || []).filter(b => b.status === 'COMPLETED').length,
+    canceled: (bookings || []).filter(b => b.status === 'CANCELED').length,
   }), [bookings]);
 
   const statusLabels = {
@@ -562,8 +611,9 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   ];
 
   const filteredBookings = useMemo(() => {
-    if (bookingStatusFilter === 'ALL') return bookings;
-    return bookings.filter(b => b.status === bookingStatusFilter);
+    const bookingsList = bookings || [];
+    if (bookingStatusFilter === 'ALL') return bookingsList;
+    return bookingsList.filter(b => b.status === bookingStatusFilter);
   }, [bookings, bookingStatusFilter]);
 
   const containerVariants = {
@@ -781,7 +831,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         </td>
                       </tr>
                     ) : (
-                      users.map((user) => (
+                      (users || []).map((user) => (
                         <tr key={user.id} className="hover:bg-gray-700 transition-colors">
                           <td className={tdStyle}>
                             <div className="flex items-center gap-3">
@@ -820,24 +870,28 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                               >
                                 <PencilIcon className="w-4 h-4" />
                               </button>
-                              <button
+                              <LoadingButton
                                 onClick={() => handleActivateUser(user.id)}
+                                loading={activatingUserId === user.id}
                                 className={`p-2 transition ${
                                   user.is_active 
                                     ? 'text-yellow-400 hover:text-yellow-300' 
                                     : 'text-green-400 hover:text-green-300'
                                 }`}
                                 title={user.is_active ? 'Deactivate' : 'Activate'}
+                                variant="outline"
                               >
                                 <CheckCircleIcon className="w-4 h-4" />
-                              </button>
-                              <button
+                              </LoadingButton>
+                              <LoadingButton
                                 onClick={() => setDeleteUserId(user.id)}
+                                loading={deletingUserId === user.id}
                                 className="p-2 text-red-400 hover:text-red-300 transition"
                                 title="Delete user"
+                                variant="outline"
                               >
                                 <TrashIcon className="w-4 h-4" />
-                              </button>
+                              </LoadingButton>
                             </div>
                           </td>
                         </tr>
@@ -900,7 +954,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                       </select>
                     </div>
                     <div className="flex gap-2">
-                      <LoadingButton type="submit" className="px-4 py-2">Update User</LoadingButton>
+                      <LoadingButton 
+                        type="submit" 
+                        loading={updatingUserId === editingUser.id}
+                        className="px-4 py-2"
+                      >
+                        Update User
+                      </LoadingButton>
                       <button
                         type="button"
                         onClick={() => {
@@ -949,7 +1009,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         </td>
                       </tr>
                     ) : (
-                      services.map((service) => (
+                      (services || []).map((service) => (
                         <tr key={service.id} className="hover:bg-gray-700 transition-colors">
                           <td className={tdStyle}>
                             <div className="font-semibold">{service.title}</div>
@@ -975,18 +1035,21 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEditService(service)}
-                                className="p-2 text-blue-400 hover:text-blue-300 transition"
+                                disabled={updatingServiceId === service.id || deletingServiceId === service.id}
+                                className="p-2 text-blue-400 hover:text-blue-300 transition disabled:opacity-50"
                                 title="Edit service"
                               >
                                 <PencilIcon className="w-4 h-4" />
                               </button>
-                              <button
+                              <LoadingButton
                                 onClick={() => setDeleteServiceId(service.id)}
+                                loading={deletingServiceId === service.id}
                                 className="p-2 text-red-400 hover:text-red-300 transition"
                                 title="Delete service"
+                                variant="outline"
                               >
                                 <TrashIcon className="w-4 h-4" />
-                              </button>
+                              </LoadingButton>
                             </div>
                           </td>
                         </tr>
@@ -1059,13 +1122,19 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         required
                       >
                         <option value="">Select a category</option>
-                        {categories.map((cat) => (
+                        {(categories || []).map((cat) => (
                           <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>
                     <div className="flex gap-2">
-                      <LoadingButton type="submit" className="px-4 py-2">Update Service</LoadingButton>
+                      <LoadingButton 
+                        type="submit" 
+                        loading={updatingServiceId === editingService.id}
+                        className="px-4 py-2"
+                      >
+                        Update Service
+                      </LoadingButton>
                       <button
                         type="button"
                         onClick={() => {
@@ -1179,8 +1248,8 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         </td>
                       </tr>
                     ) : (
-                      categories.map((category) => {
-                        const serviceCount = services.filter(s => s.category === category.id).length;
+                      (categories || []).map((category) => {
+                        const serviceCount = (services || []).filter(s => s.category === category.id).length;
                         return (
                           <tr key={category.id} className="hover:bg-gray-700 transition-colors">
                             <td className={tdStyle}>
@@ -1203,14 +1272,16 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                                 >
                                   Edit
                                 </button>
-                                <button
+                                <LoadingButton
                                   onClick={() => setDeleteCategoryId(category.id)}
-                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition"
+                                  loading={deletingCategoryId === category.id}
+                                  className="px-3 py-1 text-sm"
+                                  variant="danger"
                                   disabled={categoryLoading || serviceCount > 0}
                                   title={serviceCount > 0 ? 'Cannot delete category with services' : 'Delete category'}
                                 >
                                   Delete
-                                </button>
+                                </LoadingButton>
                               </div>
                             </td>
                           </tr>
@@ -1352,8 +1423,8 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
 
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                 <p className="text-gray-300 text-sm">
-                  Showing <span className="text-white font-semibold">{filteredBookings.length}</span> of{' '}
-                  <span className="text-white font-semibold">{bookings.length}</span> bookings
+                  Showing <span className="text-white font-semibold">{(filteredBookings || []).length}</span> of{' '}
+                  <span className="text-white font-semibold">{(bookings || []).length}</span> bookings
                 </p>
                 <div className="flex items-center gap-2">
                   <label htmlFor="bookingStatusFilter" className="text-sm text-gray-300">
@@ -1387,7 +1458,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {filteredBookings.length === 0 ? (
+                    {(filteredBookings || []).length === 0 ? (
                       <tr>
                         <td colSpan="6" className="px-6 py-8 text-center text-gray-400">
                           No bookings found
@@ -1416,6 +1487,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                               {booking.status === 'PENDING_ADMIN_APPROVAL' && (
                                 <LoadingButton
                                   onClick={() => handleApproveBooking(booking.id)}
+                                  loading={approvingBookingId === booking.id}
                                   className="px-3 py-1 text-xs"
                                 >
                                   Approve
@@ -1423,18 +1495,21 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                               )}
                               <button
                                 onClick={() => handleEditBooking(booking)}
-                                className="p-2 text-blue-400 hover:text-blue-300 transition"
+                                disabled={updatingBookingId === booking.id || deletingBookingId === booking.id || approvingBookingId === booking.id}
+                                className="p-2 text-blue-400 hover:text-blue-300 transition disabled:opacity-50"
                                 title="Edit booking"
                               >
                                 <PencilIcon className="w-4 h-4" />
                               </button>
-                              <button
+                              <LoadingButton
                                 onClick={() => setDeleteBookingId(booking.id)}
+                                loading={deletingBookingId === booking.id}
                                 className="p-2 text-red-400 hover:text-red-300 transition"
                                 title="Delete booking"
+                                variant="outline"
                               >
                                 <TrashIcon className="w-4 h-4" />
-                              </button>
+                              </LoadingButton>
                             </div>
                           </td>
                         </tr>
@@ -1481,7 +1556,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                       </select>
                     </div>
                     <div className="flex gap-2">
-                      <LoadingButton type="submit" className="px-4 py-2">Update Booking</LoadingButton>
+                      <LoadingButton 
+                        type="submit" 
+                        loading={updatingBookingId === editingBooking?.id}
+                        className="px-4 py-2"
+                      >
+                        Update Booking
+                      </LoadingButton>
                       <button
                         type="button"
                         onClick={() => {
@@ -1551,7 +1632,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         </td>
                       </tr>
                     ) : (
-                      complaints.map((complaint) => (
+                      (complaints || []).map((complaint) => (
                         <tr key={complaint.id} className="hover:bg-gray-700 transition-colors">
                           <td className={tdStyle}>{complaint.user_details?.email || 'N/A'}</td>
                           <td className={tdStyle}>
@@ -1641,7 +1722,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                       />
                     </div>
                     <div className="flex gap-2">
-                      <LoadingButton type="submit" className="px-4 py-2">Update Complaint</LoadingButton>
+                      <LoadingButton 
+                        type="submit" 
+                        loading={updatingComplaintId === editingComplaint?.id}
+                        className="px-4 py-2"
+                      >
+                        Update Complaint
+                      </LoadingButton>
                       <button
                         type="button"
                         onClick={() => {
@@ -1690,7 +1777,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         </td>
                       </tr>
                     ) : (
-                      reviews.map((review) => (
+                      (reviews || []).map((review) => (
                         <tr key={review.id} className="hover:bg-gray-700 transition-colors">
                           <td className={tdStyle}>{review.service_details?.title || 'N/A'}</td>
                           <td className={tdStyle}>
@@ -1723,18 +1810,21 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEditReview(review)}
-                                className="p-2 text-blue-400 hover:text-blue-300 transition"
+                                disabled={updatingReviewId === review.id || deletingReviewId === review.id}
+                                className="p-2 text-blue-400 hover:text-blue-300 transition disabled:opacity-50"
                                 title="Edit review"
                               >
                                 <PencilIcon className="w-4 h-4" />
                               </button>
-                              <button
+                              <LoadingButton
                                 onClick={() => setDeleteReviewId(review.id)}
+                                loading={deletingReviewId === review.id}
                                 className="p-2 text-red-400 hover:text-red-300 transition"
                                 title="Delete review"
+                                variant="outline"
                               >
                                 <TrashIcon className="w-4 h-4" />
-                              </button>
+                              </LoadingButton>
                             </div>
                           </td>
                         </tr>
@@ -1791,7 +1881,13 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                       />
                     </div>
                     <div className="flex gap-2">
-                      <LoadingButton type="submit" className="px-4 py-2">Update Review</LoadingButton>
+                      <LoadingButton 
+                        type="submit" 
+                        loading={updatingReviewId === editingReview?.id}
+                        className="px-4 py-2"
+                      >
+                        Update Review
+                      </LoadingButton>
                       <button
                         type="button"
                         onClick={() => {
@@ -2079,6 +2175,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={categoryLoading}
       />
       <ConfirmationDialog
         isOpen={!!deleteUserId}
@@ -2089,6 +2186,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingUserId}
       />
       <ConfirmationDialog
         isOpen={!!deleteServiceId}
@@ -2099,6 +2197,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingServiceId}
       />
       <ConfirmationDialog
         isOpen={!!deleteBookingId}
@@ -2109,6 +2208,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingBookingId}
       />
       <ConfirmationDialog
         isOpen={!!deleteReviewId}
@@ -2119,6 +2219,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingReviewId}
       />
     </motion.div>
   );

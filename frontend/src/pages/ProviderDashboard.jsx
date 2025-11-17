@@ -290,7 +290,7 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
 }
 
 // Service Card Component
-function ServiceCard({ service, onEdit, onDelete }) {
+function ServiceCard({ service, onEdit, onDelete, isDeleting = false, isEditing = false }) {
   return (
     <motion.div
       whileHover={{ scale: 1.01 }}
@@ -317,12 +317,14 @@ function ServiceCard({ service, onEdit, onDelete }) {
       <div className="flex gap-2 mt-4 pt-4 border-t border-gray-700">
         <LoadingButton
           onClick={() => onEdit(service)}
+          disabled={isDeleting || isEditing}
           className="flex-1 py-2 px-4 text-sm"
         >
           Edit
         </LoadingButton>
         <LoadingButton
           onClick={() => onDelete(service.id)}
+          loading={isDeleting}
           variant="danger"
           className="flex-1 py-2 px-4 text-sm"
         >
@@ -334,7 +336,7 @@ function ServiceCard({ service, onEdit, onDelete }) {
 }
 
 // Booking Card Component
-function BookingCard({ booking, onUpdateStatus }) {
+function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingBookingId }) {
   const bookingDate = new Date(booking.booking_date);
   const statusColors = {
     'PENDING_ADMIN_APPROVAL': 'bg-orange-900 text-orange-300',
@@ -394,6 +396,7 @@ function BookingCard({ booking, onUpdateStatus }) {
       {canConfirm && (
         <LoadingButton
           onClick={() => onUpdateStatus(booking.id, 'CONFIRMED')}
+          loading={confirmingBookingId === booking.id}
           variant="success"
           className="w-full py-2 px-4 text-sm mb-2"
         >
@@ -404,6 +407,7 @@ function BookingCard({ booking, onUpdateStatus }) {
       {canComplete && (
         <LoadingButton
           onClick={() => onUpdateStatus(booking.id, 'COMPLETED')}
+          loading={completingBookingId === booking.id}
           className="w-full py-2 px-4 text-sm"
         >
           Mark as Completed
@@ -437,6 +441,13 @@ export default function ProviderDashboard() {
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('services'); // 'services', 'categories', or 'reviews'
+  
+  // Loading states for booking operations
+  const [confirmingBookingId, setConfirmingBookingId] = useState(null);
+  const [completingBookingId, setCompletingBookingId] = useState(null);
+  const [deletingServiceId, setDeletingServiceId] = useState(null);
+  const [updatingServiceId, setUpdatingServiceId] = useState(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -533,6 +544,7 @@ export default function ProviderDashboard() {
   const handleDeleteCategory = async () => {
     if (!deleteCategoryId) return;
     
+    setDeletingCategoryId(deleteCategoryId);
     setCategoryLoading(true);
     try {
       await categoryService.deleteCategory(deleteCategoryId);
@@ -544,6 +556,7 @@ export default function ProviderDashboard() {
       showToast(errorMsg, 'error');
     } finally {
       setCategoryLoading(false);
+      setDeletingCategoryId(null);
     }
   };
 
@@ -555,6 +568,7 @@ export default function ProviderDashboard() {
   const handleDeleteService = async () => {
     if (!serviceToDelete) return;
     
+    setDeletingServiceId(serviceToDelete);
     try {
       await serviceService.deleteService(serviceToDelete);
       setMyServices(myServices.filter(s => s.id !== serviceToDelete));
@@ -565,10 +579,19 @@ export default function ProviderDashboard() {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to delete service.';
       showToast(errorMessage, 'error');
       console.error(err);
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
   const handleUpdateBookingStatus = async (bookingId, newStatus) => {
+    // Set appropriate loading state
+    if (newStatus === 'CONFIRMED') {
+      setConfirmingBookingId(bookingId);
+    } else if (newStatus === 'COMPLETED') {
+      setCompletingBookingId(bookingId);
+    }
+    
     try {
       const updatedBooking = await bookingService.updateBooking(bookingId, {
         status: newStatus
@@ -581,6 +604,12 @@ export default function ProviderDashboard() {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to update booking status.';
       showToast(errorMessage, 'error');
       console.error(err);
+    } finally {
+      if (newStatus === 'CONFIRMED') {
+        setConfirmingBookingId(null);
+      } else if (newStatus === 'COMPLETED') {
+        setCompletingBookingId(null);
+      }
     }
   };
 
@@ -813,6 +842,8 @@ export default function ProviderDashboard() {
                       service={service}
                       onEdit={setEditingService}
                       onDelete={handleDeleteServiceClick}
+                      isDeleting={deletingServiceId === service.id}
+                      isEditing={updatingServiceId === service.id || editingService?.id === service.id}
                     />
                   </motion.div>
                 ))
@@ -859,6 +890,8 @@ export default function ProviderDashboard() {
                     <BookingCard
                       booking={booking}
                       onUpdateStatus={handleUpdateBookingStatus}
+                      confirmingBookingId={confirmingBookingId}
+                      completingBookingId={completingBookingId}
                     />
                   </motion.div>
                 ))
@@ -995,14 +1028,16 @@ export default function ProviderDashboard() {
                                 >
                                   Edit
                                 </button>
-                                <button
+                                <LoadingButton
                                   onClick={() => setDeleteCategoryId(category.id)}
-                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition"
+                                  loading={deletingCategoryId === category.id}
+                                  className="px-3 py-1 text-sm"
+                                  variant="danger"
                                   disabled={categoryLoading || serviceCount > 0}
                                   title={serviceCount > 0 ? 'Cannot delete category with services' : 'Delete category'}
                                 >
                                   Delete
-                                </button>
+                                </LoadingButton>
                               </div>
                             </td>
                           </tr>
@@ -1087,6 +1122,7 @@ export default function ProviderDashboard() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={!!deletingServiceId}
       />
 
       {/* Delete Category Confirmation Dialog */}
@@ -1099,6 +1135,7 @@ export default function ProviderDashboard() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        loading={categoryLoading}
       />
     </motion.div>
   );
