@@ -20,6 +20,54 @@ from .models import AdminActionLog
 from users.models import CustomUser
 from services.models import Service, Booking, Review, Complaint
 
+class RegisterRoleView(APIView):
+    """
+    POST: Set user role during registration (can only be called once, and only to set PROVIDER role).
+    This endpoint allows users to set their role after Firebase authentication but before their first login.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """
+        Set the user's role. Can only be called if user is currently SEEKER (default).
+        Only allows changing to PROVIDER role.
+        """
+        user = request.user
+        
+        # Check if role is provided
+        role = request.data.get('role')
+        if not role:
+            return Response(
+                {'error': 'Role is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate role value
+        valid_roles = ['SEEKER', 'PROVIDER']
+        if role not in valid_roles:
+            return Response(
+                {'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Only allow setting role if user is currently SEEKER (default)
+        # This ensures role can only be set once during registration
+        if user.role != 'SEEKER':
+            return Response(
+                {'error': 'Role has already been set and cannot be changed. Contact admin for role changes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Update user role
+        user.role = role
+        user.save()
+        
+        serializer = CustomUserSerializer(user)
+        return Response({
+            'message': f'Role successfully set to {role}',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
+
 class CurrentUserView(RetrieveUpdateAPIView):
     """
     Handles GET and PATCH requests for the currently authenticated user.
@@ -38,8 +86,45 @@ class CurrentUserView(RetrieveUpdateAPIView):
     
     def partial_update(self, request, *args, **kwargs):
         """
-        Allow partial updates, including email_notifications preference.
+        Allow partial updates, including email_notifications preference and role.
+        Role can only be updated if:
+        - User is currently SEEKER and wants to change to PROVIDER (one-time upgrade)
+        - Or user is ADMIN (can change to any role)
         """
+        instance = self.get_object()
+        
+        # Check if role is being updated
+        if 'role' in request.data:
+            new_role = request.data.get('role')
+            current_role = instance.role
+            
+            # Validate role value
+            valid_roles = ['SEEKER', 'PROVIDER', 'ADMIN']
+            if new_role not in valid_roles:
+                return Response(
+                    {'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Allow role change only if:
+            # 1. User is currently SEEKER and wants to become PROVIDER (one-time upgrade)
+            # 2. User is ADMIN (can change to any role)
+            if current_role == 'SEEKER' and new_role == 'PROVIDER':
+                # Allow upgrade from SEEKER to PROVIDER
+                pass
+            elif instance.is_superuser or instance.is_staff or current_role == 'ADMIN':
+                # Admins can change their role
+                pass
+            elif current_role == new_role:
+                # Same role, no change needed
+                pass
+            else:
+                # Prevent downgrade or other role changes
+                return Response(
+                    {'error': 'Role can only be changed from SEEKER to PROVIDER. Contact admin for other role changes.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
         return super().partial_update(request, *args, **kwargs)
 
 class DjangoAdminSessionView(APIView):

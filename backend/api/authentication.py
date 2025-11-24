@@ -35,6 +35,14 @@ class FirebaseAuthentication(BaseAuthentication):
             # This links the Firebase user to a Django user
             firebase_email = decoded_token.get('email')
             
+            # Get role from Firebase custom claims, or default to SEEKER
+            # Custom claims are set during registration in Firebase
+            firebase_role = decoded_token.get('role') or decoded_token.get('custom_claims', {}).get('role')
+            if firebase_role and firebase_role in ['SEEKER', 'PROVIDER', 'ADMIN']:
+                user_role = firebase_role
+            else:
+                user_role = 'SEEKER'  # Default role for new users
+            
             # First try to find user by email (in case admin was created before Firebase login)
             user = None
             if firebase_email:
@@ -48,6 +56,12 @@ class FirebaseAuthentication(BaseAuthentication):
                         # Firebase UID changed, update it
                         user.firebase_uid = firebase_uid
                         user.save()
+                    # Update role from Firebase custom claims if:
+                    # 1. User is still SEEKER (default) and Firebase has a different role
+                    # 2. This allows role to be set during registration via Firebase custom claims
+                    if firebase_role and user.role == 'SEEKER' and firebase_role in ['PROVIDER', 'ADMIN']:
+                        user.role = user_role
+                        user.save()
                 except CustomUser.DoesNotExist:
                     pass
             
@@ -59,13 +73,17 @@ class FirebaseAuthentication(BaseAuthentication):
                     if firebase_email and user.email != firebase_email:
                         user.email = firebase_email
                         user.save()
+                    # Update role from Firebase custom claims if user is still SEEKER (default)
+                    if firebase_role and user.role == 'SEEKER' and firebase_role in ['PROVIDER', 'ADMIN']:
+                        user.role = user_role
+                        user.save()
                 except CustomUser.DoesNotExist:
                     # Create new user if none exists
                     user = CustomUser.objects.create(
                         email=firebase_email or f"user_{firebase_uid}@firebase.local",
                         firebase_uid=firebase_uid,
                         is_active=True,
-                        role='SEEKER'  # Default role for new users
+                        role=user_role  # Use role from Firebase custom claims or default to SEEKER
                     )
 
             return (user, decoded_token)

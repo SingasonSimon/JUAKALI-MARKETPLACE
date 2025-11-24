@@ -5,6 +5,9 @@ urlpatterns = [
     # /api/users/me/
     path('users/me/', views.CurrentUserView.as_view(), name='current-user'),
     
+    # /api/register/role/ - Set role during registration
+    path('register/role/', views.RegisterRoleView.as_view(), name='register-role'),
+    
     # Django admin session check
     path('django-admin/session/', views.DjangoAdminSessionView.as_view(), name='django-admin-session'),
     path('django-admin/logout/', views.DjangoAdminLogoutView.as_view(), name='django-admin-logout'),
