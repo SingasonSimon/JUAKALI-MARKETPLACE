@@ -21,11 +21,13 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'address',
             'show_contact_info',
             'profile_image',
+            'provider_payment_number',
+            'provider_payment_method',
         ]
         read_only_fields = ['id', 'email', 'firebase_uid', 'is_active', 'date_joined']
     
     def get_profile_image(self, obj):
-        """Return full profile image URL if image exists, otherwise return None."""
+        """Return full Cloudinary HTTPS URL if image exists, otherwise return None."""
         if not obj.profile_image:
             return None
             
@@ -33,8 +35,16 @@ class CustomUserSerializer(serializers.ModelSerializer):
             import os
             from django.conf import settings
             
+            # Check if Cloudinary is configured
+            cloudinary_configured = (
+                hasattr(settings, 'CLOUDINARY_CLOUD_NAME') and 
+                settings.CLOUDINARY_CLOUD_NAME and
+                hasattr(settings, 'CLOUDINARY_API_KEY') and 
+                settings.CLOUDINARY_API_KEY
+            )
+            
             # Check if this is a CloudinaryField
-            if hasattr(obj.profile_image, 'url'):
+            if hasattr(obj.profile_image, 'url') and cloudinary_configured:
                 try:
                     # Check if public_id exists and is valid (CloudinaryField requirement)
                     public_id = None
@@ -49,24 +59,53 @@ class CustomUserSerializer(serializers.ModelSerializer):
                     
                     # Validate Cloudinary URL format
                     if cloudinary_url and isinstance(cloudinary_url, str) and cloudinary_url.strip():
-                        # Check if it's a valid HTTP/HTTPS URL
-                        if cloudinary_url.startswith('http://') or cloudinary_url.startswith('https://'):
-                            # Return the Cloudinary URL
+                        # Check if it's already a full HTTPS URL (preferred)
+                        if cloudinary_url.startswith('https://'):
                             return cloudinary_url
-                        # If it's a relative URL, try to construct absolute URL
+                        # If it's HTTP, convert to HTTPS
+                        elif cloudinary_url.startswith('http://'):
+                            return cloudinary_url.replace('http://', 'https://', 1)
+                        # If it's a relative URL, construct full Cloudinary URL
                         elif cloudinary_url.startswith('/'):
-                            request = self.context.get('request')
-                            if request:
-                                return request.build_absolute_uri(cloudinary_url)
-                            return cloudinary_url
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload{cloudinary_url}"
+                        # If it's just a public_id, construct full URL
+                        else:
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            folder = 'juakali/profiles'
+                            if hasattr(obj.profile_image, 'field') and hasattr(obj.profile_image.field, 'folder'):
+                                folder = obj.profile_image.field.folder
+                            public_id_with_folder = f"{folder}/{public_id}" if folder else public_id
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{public_id_with_folder}"
                     
-                    # If URL generation failed or returned invalid format, try local fallback
+                    # If URL generation failed, try manual construction
+                    if public_id:
+                        cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                        folder = 'juakali/profiles'
+                        if hasattr(obj.profile_image, 'field') and hasattr(obj.profile_image.field, 'folder'):
+                            folder = obj.profile_image.field.folder
+                        public_id_with_folder = f"{folder}/{public_id}" if folder else public_id
+                        return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{public_id_with_folder}"
+                    
                 except (AttributeError, Exception) as e:
-                    # Cloudinary URL generation failed, try local fallback
+                    # Cloudinary URL generation failed, try manual construction
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.debug(f"Cloudinary URL generation failed for user {obj.id}: {str(e)}")
-                    # Fall through to local file check
+                    
+                    # Try manual URL construction as fallback
+                    if cloudinary_configured and hasattr(obj.profile_image, 'public_id'):
+                        public_id = obj.profile_image.public_id
+                        if public_id:
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            folder = 'juakali/profiles'
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{folder}/{public_id}"
+                    
+                    # Fall through to local file check only if Cloudinary is not configured
+                    if not cloudinary_configured:
+                        pass  # Fall through to local check
+                    else:
+                        return None  # Cloudinary is configured but URL generation failed
             
             # Check if file exists locally (for images uploaded before Cloudinary was configured)
             image_name = str(obj.profile_image)

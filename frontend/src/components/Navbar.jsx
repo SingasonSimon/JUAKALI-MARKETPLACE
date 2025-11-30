@@ -113,7 +113,7 @@ export default function Navbar() {
                 </NavLink>
                 <NavLink
                   to="/register"
-                  className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition rounded-lg"
+                  className="py-2 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold text-sm transition-all duration-300 rounded-lg shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 active:scale-95"
                   aria-label="Register"
                 >
                   Register

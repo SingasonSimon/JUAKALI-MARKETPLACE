@@ -21,6 +21,26 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=20, blank=True, null=True, help_text="Phone number")
     address = models.TextField(blank=True, null=True, help_text="Address")
     show_contact_info = models.BooleanField(default=False, help_text="Allow providers to see contact info in booking details")
+    
+    # Provider payment information (for providers to receive payments)
+    provider_payment_number = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        help_text="Default payment number for provider (e.g., M-Pesa number)"
+    )
+    provider_payment_method = models.CharField(
+        max_length=50,
+        choices=[
+            ('MOBILE_MONEY', 'Mobile Money (M-Pesa)'),
+            ('BANK_TRANSFER', 'Bank Transfer'),
+            ('CARD', 'Card'),
+        ],
+        default='MOBILE_MONEY',
+        blank=True,
+        null=True,
+        help_text="Default payment method for provider"
+    )
 
     # We don't need username/password, auth is handled by Firebase.
     # We can use email as the unique identifier.

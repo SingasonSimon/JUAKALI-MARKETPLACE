@@ -71,7 +71,7 @@ function ServiceCard({ service, index }) {
           {service.image && (
             <div className="mb-3 rounded-lg overflow-hidden">
               <img 
-                src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+                src={service.image}
                 alt={service.title}
                 className="w-full h-48 object-cover"
                 onError={(e) => {
@@ -219,13 +219,13 @@ export default function Home() {
             >
               <Link
                 to="/register"
-                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
+                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 active:scale-95 text-center"
               >
                 Get Started
               </Link>
               <Link
                 to="/login"
-                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
+                className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 active:scale-95 text-center"
               >
                 Sign In
               </Link>
@@ -239,7 +239,7 @@ export default function Home() {
             >
               <Link
                 to="/dashboard"
-                className="w-full sm:w-auto inline-block px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition duration-200 shadow-lg hover:shadow-xl text-center"
+                className="w-full sm:w-auto inline-block px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 active:scale-95 text-center"
               >
                 Go to Dashboard
               </Link>

@@ -207,7 +207,7 @@ export default function AdminLayout({ djangoAdminUser }) {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'} hide-scrollbar`}>
+        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'}`}>
           <ul className="space-y-1.5">
             {navItems.map((item) => (
               <li key={item.path}>
@@ -407,7 +407,7 @@ export default function AdminLayout({ djangoAdminUser }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6 hide-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet context={{ djangoAdminUser }} />
           </div>

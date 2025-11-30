@@ -33,12 +33,13 @@ class ErrorBoundary extends React.Component {
               >
                 Refresh Page
               </LoadingButton>
-              <button
+              <LoadingButton
                 onClick={() => window.location.href = '/'}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-lg transition"
+                variant="secondary"
+                className="px-6 py-2"
               >
                 Go Home
-              </button>
+              </LoadingButton>
             </div>
           </div>
         </div>

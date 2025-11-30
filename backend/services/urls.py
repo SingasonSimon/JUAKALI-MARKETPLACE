@@ -41,6 +41,27 @@ urlpatterns = [
     # /api/payments/<pk>/
     path('payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment-detail'),
     
+    # /api/payments/<id>/provider-details/ - Provider sets payment number
+    path('payments/<int:payment_id>/provider-details/', views.ProviderPaymentDetailsView.as_view(), name='payment-provider-details'),
+    
+    # /api/payments/<id>/upload-screenshot/ - Seeker uploads payment screenshot
+    path('payments/<int:payment_id>/upload-screenshot/', views.SeekerUploadScreenshotView.as_view(), name='payment-upload-screenshot'),
+    
+    # /api/payments/<id>/verify/ - Admin verifies payment
+    path('payments/<int:payment_id>/verify/', views.AdminVerifyPaymentView.as_view(), name='payment-verify'),
+    
+    # /api/payments/pending-verification/ - Admin list pending verifications
+    path('payments/pending-verification/', views.PendingVerificationListView.as_view(), name='payment-pending-verification'),
+    
+    # /api/payments/provider/ - Provider list their payments
+    path('payments/provider/', views.ProviderPaymentListView.as_view(), name='payment-provider-list'),
+    
+    # /api/payments/seeker/ - Seeker list their payments
+    path('payments/seeker/', views.SeekerPaymentListView.as_view(), name='payment-seeker-list'),
+    
+    # /api/payments/admin/ - Admin list all payments
+    path('payments/admin/', views.AdminPaymentListView.as_view(), name='payment-admin-list'),
+    
     # /api/provider/analytics/
     path('provider/analytics/', views.ProviderAnalyticsView.as_view(), name='provider-analytics'),
 ]

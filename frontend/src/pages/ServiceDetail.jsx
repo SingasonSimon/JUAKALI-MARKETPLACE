@@ -205,7 +205,7 @@ export default function ServiceDetail() {
         {service.image && (
           <div className="w-full h-96 overflow-hidden bg-gray-900">
             <img 
-              src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+              src={service.image}
               alt={service.title}
               className="w-full h-full object-cover"
               onError={(e) => {

@@ -58,7 +58,7 @@ export default function Pagination({
             <>
               <button
                 onClick={() => onPageChange(1)}
-                className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                className="px-3 py-2 text-sm bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
               >
                 1
               </button>
@@ -70,10 +70,10 @@ export default function Pagination({
             <button
               key={page}
               onClick={() => onPageChange(page)}
-              className={`px-3 py-2 text-sm rounded transition ${
+              className={`px-3 py-2 text-sm rounded-lg transition-all duration-300 active:scale-95 ${
                 currentPage === page
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50'
+                  : 'bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white shadow-md hover:shadow-lg'
               }`}
             >
               {page}
@@ -85,7 +85,7 @@ export default function Pagination({
               {endPage < totalPages - 1 && <span className="px-2 text-gray-400">...</span>}
               <button
                 onClick={() => onPageChange(totalPages)}
-                className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                className="px-3 py-2 text-sm bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
               >
                 {totalPages}
               </button>

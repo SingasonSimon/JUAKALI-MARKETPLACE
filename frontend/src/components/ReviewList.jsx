@@ -48,7 +48,22 @@ export default function ReviewList({ reviews, onUpdate, canEdit = false, readonl
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                {review.seeker_details?.profile_image ? (
+                  <img
+                    src={review.seeker_details.profile_image}
+                    alt={`${review.seeker_details?.first_name} ${review.seeker_details?.last_name}`}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-600"
+                    onError={(e) => {
+                      // Fallback to initial if image fails to load
+                      e.target.style.display = 'none';
+                      const fallback = e.target.nextElementSibling;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm ${review.seeker_details?.profile_image ? 'hidden' : ''}`}
+                >
                   {review.seeker_details?.first_name?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div>

@@ -27,6 +27,7 @@ import { djangoAdminService } from '../services/djangoAdminService';
 import { serviceService } from '../services/serviceService';
 import { bookingService } from '../services/bookingService';
 import { categoryService } from '../services/categoryService';
+import { paymentService } from '../services/paymentService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
@@ -90,6 +91,12 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
   const [editingReview, setEditingReview] = useState(null);
   const [deleteReviewId, setDeleteReviewId] = useState(null);
   const [reviewFormData, setReviewFormData] = useState({ rating: '', comment: '' });
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState(null);
+  const [verificationNotes, setVerificationNotes] = useState('');
+  const tabNavRef = React.useRef(null);
+  const [showLeftGradient, setShowLeftGradient] = useState(false);
+  const [showRightGradient, setShowRightGradient] = useState(false);
   
   // Loading states for all operations
   const [approvingBookingId, setApprovingBookingId] = useState(null);
@@ -152,11 +159,52 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
       adminApi.getActionLogs().then(setActionLogs).catch(console.error);
     } else if (activeTab === 'reviews' && (reviews || []).length === 0) {
       adminApi.getAllReviews().then(setReviews).catch(() => setReviews([]));
+    } else if (activeTab === 'payments') {
+      paymentService.getPendingVerifications().then(setPendingPayments).catch(() => setPendingPayments([]));
     } else if (activeTab === 'complaints') {
       // Refresh complaints when complaints tab is active
       adminApi.getAllComplaints().then(setComplaints).catch(() => setComplaints([]));
     }
   }, [activeTab, reportType, isDjangoAdmin, analytics, reviews]);
+
+  // Update gradient visibility based on scroll position
+  const updateGradientVisibility = () => {
+    if (tabNavRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabNavRef.current;
+      setShowLeftGradient(scrollLeft > 10);
+      setShowRightGradient(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (tabNavRef.current) {
+      const activeButton = tabNavRef.current.querySelector(`[data-tab-id="${activeTab}"]`);
+      if (activeButton) {
+        // Calculate scroll position to center the active tab
+        const container = tabNavRef.current;
+        const buttonRect = activeButton.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const scrollLeft = container.scrollLeft + (buttonRect.left - containerRect.left) - (containerRect.width / 2) + (buttonRect.width / 2);
+        
+        container.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth',
+        });
+      }
+      updateGradientVisibility();
+    }
+  }, [activeTab]);
+
+  // Update gradients on scroll
+  useEffect(() => {
+    const nav = tabNavRef.current;
+    if (nav) {
+      nav.addEventListener('scroll', updateGradientVisibility);
+      updateGradientVisibility(); // Initial check
+      return () => nav.removeEventListener('scroll', updateGradientVisibility);
+    }
+  }, []);
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
@@ -638,8 +686,39 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
 
   const filteredBookings = useMemo(() => {
     const bookingsList = bookings || [];
-    if (bookingStatusFilter === 'ALL') return bookingsList;
-    return bookingsList.filter(b => b.status === bookingStatusFilter);
+    let filtered = bookingsList;
+    
+    // Apply status filter if not 'ALL'
+    if (bookingStatusFilter !== 'ALL') {
+      filtered = bookingsList.filter(b => b.status === bookingStatusFilter);
+    }
+    
+    // Sort bookings: PENDING_ADMIN_APPROVAL first, then by created_at (newest first)
+    const sorted = [...filtered].sort((a, b) => {
+      // Priority order for statuses
+      const statusPriority = {
+        'PENDING_ADMIN_APPROVAL': 1,
+        'ADMIN_APPROVED': 2,
+        'CONFIRMED': 3,
+        'COMPLETED': 4,
+        'CANCELED': 5,
+      };
+      
+      const aPriority = statusPriority[a.status] || 99;
+      const bPriority = statusPriority[b.status] || 99;
+      
+      // If different priorities, sort by priority
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+      
+      // If same priority, sort by created_at (newest first)
+      const aDate = new Date(a.created_at || 0);
+      const bDate = new Date(b.created_at || 0);
+      return bDate - aDate;
+    });
+    
+    return sorted;
   }, [bookings, bookingStatusFilter]);
 
   const containerVariants = {
@@ -782,50 +861,110 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
 
       {/* Tabs */}
       <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl flex flex-col h-full">
-        <div className="border-b border-gray-700 flex-shrink-0">
-          <nav className="flex -mb-px space-x-1">
-            {[
-              { id: 'overview', label: 'Overview', Icon: ClipboardDocumentListIcon },
-              { id: 'users', label: 'Users', Icon: UserIcon },
-              { id: 'services', label: 'Services', Icon: Cog6ToothIcon },
-              { id: 'bookings', label: 'Bookings', Icon: CalendarIcon },
-              { id: 'categories', label: 'Categories', Icon: FolderIcon },
-              { id: 'complaints', label: 'Complaints', Icon: ExclamationTriangleIcon },
-              { id: 'reviews', label: 'Reviews', Icon: StarIcon },
-              { id: 'analytics', label: 'Analytics', Icon: ChartBarIcon },
-              { id: 'reports', label: 'Reports', Icon: DocumentTextIcon },
-              { id: 'audit-logs', label: 'Audit Logs', Icon: ClockIcon },
-            ].map((tab) => {
-              const IconComponent = tab.Icon;
-              return (
-                <button
-                  key={tab.id}
+        <div className="border-b border-gray-700 flex-shrink-0 bg-gray-800/50 backdrop-blur-sm">
+          <div className="relative">
+            {/* Scrollable Tab Container */}
+            <nav 
+              ref={tabNavRef}
+              className="flex overflow-x-auto -mb-px scroll-smooth tab-scrollbar px-2"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(59, 130, 246, 0.3) transparent',
+              }}
+            >
+              {[
+                { id: 'overview', label: 'Overview', Icon: ClipboardDocumentListIcon },
+                { id: 'users', label: 'Users', Icon: UserIcon },
+                { id: 'services', label: 'Services', Icon: Cog6ToothIcon },
+                { id: 'bookings', label: 'Bookings', Icon: CalendarIcon },
+                { id: 'payments', label: 'Payments', Icon: CheckCircleIcon },
+                { id: 'categories', label: 'Categories', Icon: FolderIcon },
+                { id: 'complaints', label: 'Complaints', Icon: ExclamationTriangleIcon },
+                { id: 'reviews', label: 'Reviews', Icon: StarIcon },
+                { id: 'analytics', label: 'Analytics', Icon: ChartBarIcon },
+                { id: 'reports', label: 'Reports', Icon: DocumentTextIcon },
+                { id: 'audit-logs', label: 'Audit Logs', Icon: ClockIcon },
+              ].map((tab) => {
+                const IconComponent = tab.Icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    data-tab-id={tab.id}
                     onClick={() => {
-                    setActiveTab(tab.id);
-                    setShowCategoryForm(false);
-                    setEditingCategory(null);
-                    setEditingUser(null);
-                    setEditingComplaint(null);
-                    setEditingBooking(null);
-                    setEditingReview(null);
-                    setEditingService(null);
-                  }}
-                  className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-800'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                  }`}
-                  style={{ minWidth: '120px' }}
-                >
-                  <IconComponent className="w-5 h-5 flex-shrink-0" />
-                  <span className="font-semibold">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+                      setActiveTab(tab.id);
+                      setShowCategoryForm(false);
+                      setEditingCategory(null);
+                      setEditingUser(null);
+                      setEditingComplaint(null);
+                      setEditingBooking(null);
+                      setEditingReview(null);
+                      setEditingService(null);
+                    }}
+                    className={`
+                      relative px-5 py-3.5 text-sm font-medium transition-all duration-200 
+                      flex items-center gap-2.5 whitespace-nowrap
+                      border-b-2 border-transparent
+                      min-w-fit
+                      ${isActive
+                        ? 'text-blue-400 border-blue-400'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
+                      }
+                      group
+                      rounded-t-lg
+                    `}
+                  >
+                    {/* Active indicator background with glow effect */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent rounded-t-lg"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    
+                    {/* Icon and Label */}
+                    <div className="relative z-10 flex items-center gap-2.5">
+                      <IconComponent 
+                        className={`w-5 h-5 flex-shrink-0 transition-all duration-200 ${
+                          isActive 
+                            ? 'text-blue-400 scale-110 drop-shadow-sm' 
+                            : 'text-gray-400 group-hover:text-gray-300 group-hover:scale-105'
+                        }`} 
+                      />
+                      <span className={`font-semibold transition-colors duration-200 ${
+                        isActive 
+                          ? 'text-blue-400' 
+                          : 'text-gray-400 group-hover:text-white'
+                      }`}>
+                        {tab.label}
+                      </span>
+                    </div>
+                    
+                    {/* Active bottom border indicator */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabBorder"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400 rounded-full"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+            
+            {/* Scroll gradient indicators - subtle fade effect */}
+            {showLeftGradient && (
+              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-gray-800 via-gray-800/50 to-transparent pointer-events-none z-10 transition-opacity duration-300" />
+            )}
+            {showRightGradient && (
+              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-gray-800 via-gray-800/50 to-transparent pointer-events-none z-10 transition-opacity duration-300" />
+            )}
+          </div>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0">
           {/* Users Table */}
           {activeTab === 'users' && (
             <motion.div
@@ -993,7 +1132,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingUser(null);
                           setUserFormData({ role: '', first_name: '', last_name: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1043,7 +1182,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                               <img
                                 src={service.image.startsWith('http') 
                                   ? service.image 
-                                  : `http://localhost:8000${service.image}`}
+                                  : service.image}
                                 alt={service.title}
                                 className="w-16 h-16 object-cover rounded-lg border border-gray-600"
                                 onError={(e) => {
@@ -1186,7 +1325,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingService(null);
                           setServiceFormData({ title: '', description: '', price: '', category: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1265,7 +1404,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingCategory(null);
                           setCategoryFormData({ name: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1312,7 +1451,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleEditCategory(category)}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition"
+                                  className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold rounded-lg shadow-md shadow-blue-500/50 hover:shadow-lg hover:shadow-blue-500/60 transition-all duration-300 active:scale-95"
                                   disabled={categoryLoading}
                                 >
                                   Edit
@@ -1614,7 +1753,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingBooking(null);
                           setBookingFormData({ status: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1649,7 +1788,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                       showToast('Failed to refresh complaints', 'error');
                     }
                   }}
-                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition flex items-center gap-2"
+                  className="px-3 py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 active:scale-95 flex items-center gap-2"
                   title="Refresh complaints"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1780,7 +1919,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingComplaint(null);
                           setComplaintFormData({ status: '', admin_response: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1789,6 +1928,125 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                 </motion.div>
               )}
             </motion.div>
+          )}
+
+          {/* Payment Verification Tab */}
+          {activeTab === 'payments' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white">Payment Verifications</h2>
+                <span className="px-3 py-1 bg-yellow-900 text-yellow-300 rounded-full text-sm font-semibold">
+                  {pendingPayments.length} Pending
+                </span>
+              </div>
+
+              {pendingPayments.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircleIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 text-lg">No payments pending verification</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingPayments.map((payment) => (
+                    <div key={payment.id} className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Payment Details */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-4">Payment Details</h3>
+                          <div className="space-y-2 text-sm">
+                            <p><span className="text-gray-400">Booking ID:</span> <span className="text-white font-semibold">#{payment.booking_details?.id}</span></p>
+                            <p><span className="text-gray-400">Service:</span> <span className="text-white">{payment.booking_details?.service_title}</span></p>
+                            <p><span className="text-gray-400">Amount:</span> <span className="text-white font-semibold">KES {payment.amount?.toLocaleString()}</span></p>
+                            <p><span className="text-gray-400">Payment Method:</span> <span className="text-white">{payment.payment_method}</span></p>
+                            <p><span className="text-gray-400">Provider M-Pesa:</span> <span className="text-white font-semibold">{payment.provider_payment_number}</span></p>
+                            <p><span className="text-gray-400">Seeker:</span> <span className="text-white">{payment.booking_details?.seeker_email}</span></p>
+                            <p><span className="text-gray-400">Provider:</span> <span className="text-white">{payment.booking_details?.provider_email}</span></p>
+                            <p><span className="text-gray-400">Created:</span> <span className="text-white">{new Date(payment.created_at).toLocaleString()}</span></p>
+                          </div>
+                        </div>
+
+                        {/* Screenshot */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-4">Payment Screenshot</h3>
+                          {payment.payment_screenshot ? (
+                            <div className="mb-4">
+                              <img 
+                                src={payment.payment_screenshot} 
+                                alt="Payment screenshot" 
+                                className="max-w-full h-auto rounded-lg border border-gray-600"
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-gray-400">No screenshot uploaded</p>
+                          )}
+
+                          {/* Verification Actions */}
+                          <div className="space-y-3 mt-4">
+                            <textarea
+                              value={verificationNotes}
+                              onChange={(e) => setVerificationNotes(e.target.value)}
+                              placeholder="Add verification notes (optional)"
+                              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500 text-sm"
+                              rows="3"
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                onClick={async () => {
+                                  setVerifyingPaymentId(payment.id);
+                                  try {
+                                    await paymentService.verifyPayment(payment.id, {
+                                      action: 'approve',
+                                      admin_notes: verificationNotes
+                                    });
+                                    showToast('Payment verified and marked as completed', 'success');
+                                    setPendingPayments(pendingPayments.filter(p => p.id !== payment.id));
+                                    setVerificationNotes('');
+                                  } catch (error) {
+                                    const errorMsg = error.response?.data?.error || error.message || 'Failed to verify payment';
+                                    showToast(errorMsg, 'error');
+                                  } finally {
+                                    setVerifyingPaymentId(null);
+                                  }
+                                }}
+                                loading={verifyingPaymentId === payment.id}
+                                variant="success"
+                                className="flex-1"
+                              >
+                                Approve
+                              </LoadingButton>
+                              <LoadingButton
+                                onClick={async () => {
+                                  setVerifyingPaymentId(payment.id);
+                                  try {
+                                    await paymentService.verifyPayment(payment.id, {
+                                      action: 'reject',
+                                      admin_notes: verificationNotes
+                                    });
+                                    showToast('Payment rejected. Seeker can upload a new screenshot.', 'success');
+                                    setPendingPayments(pendingPayments.filter(p => p.id !== payment.id));
+                                    setVerificationNotes('');
+                                  } catch (error) {
+                                    const errorMsg = error.response?.data?.error || error.message || 'Failed to reject payment';
+                                    showToast(errorMsg, 'error');
+                                  } finally {
+                                    setVerifyingPaymentId(null);
+                                  }
+                                }}
+                                loading={verifyingPaymentId === payment.id}
+                                variant="danger"
+                                className="flex-1"
+                              >
+                                Reject
+                              </LoadingButton>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Reviews Tab */}
@@ -1824,9 +2082,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         {review.service_details?.image && (
                           <div className="w-full h-48 overflow-hidden bg-gray-900">
                             <img
-                              src={review.service_details.image.startsWith('http') 
-                                ? review.service_details.image 
-                                : `http://localhost:8000${review.service_details.image}`}
+                              src={review.service_details.image}
                               alt={review.service_details.title}
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -1863,7 +2119,22 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                         {/* Reviewer Section */}
                         <div className="p-4 border-b border-gray-700">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                            {review.seeker_details?.profile_image ? (
+                              <img
+                                src={review.seeker_details.profile_image}
+                                alt={reviewerName}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-gray-600"
+                                onError={(e) => {
+                                  // Fallback to initial if image fails to load
+                                  e.target.style.display = 'none';
+                                  const fallback = e.target.nextElementSibling;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div 
+                              className={`w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${review.seeker_details?.profile_image ? 'hidden' : ''}`}
+                            >
                               {review.seeker_details?.first_name?.[0]?.toUpperCase() || reviewerEmail[0]?.toUpperCase() || 'U'}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -1995,7 +2266,7 @@ export default function AdminDashboard({ djangoAdminUser: propDjangoAdminUser = 
                           setEditingReview(null);
                           setReviewFormData({ rating: '', comment: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>

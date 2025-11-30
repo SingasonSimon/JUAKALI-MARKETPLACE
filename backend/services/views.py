@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
@@ -366,8 +366,9 @@ class ComplaintDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class PaymentCreateView(generics.CreateAPIView):
     """
-    POST: Create a payment for a booking (dummy card payment).
+    POST: Create a payment for a booking.
     Only works for CONFIRMED bookings.
+    Payment starts as PENDING and waits for provider to set payment details.
     """
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -385,50 +386,53 @@ class PaymentCreateView(generics.CreateAPIView):
         # Check if payment already exists
         if hasattr(booking, 'payment'):
             from rest_framework.exceptions import ValidationError
-            raise ValidationError("Payment already exists for this booking.")
+            raise ValidationError({
+                'error': 'Payment already exists for this booking.',
+                'payment_id': booking.payment.id
+            })
         
         # Only seeker can create payment for their booking
         if booking.seeker != self.request.user:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only pay for your own bookings.")
         
-        # Create payment with dummy transaction processing
+        # Get payment method from service or provider's default
+        service = booking.service
+        provider = service.provider
+        
+        # Refresh provider from database to ensure we have latest payment details
+        provider.refresh_from_db()
+        
+        # Use service payment_method if set, otherwise use provider's default
+        payment_method = service.payment_method or provider.provider_payment_method or 'MOBILE_MONEY'
+        
+        # Get provider payment number from provider profile
+        provider_payment_number = provider.provider_payment_number
+        
+        # Create payment - starts as PENDING
         payment = serializer.save(booking=booking)
+        payment.status = 'PENDING'
+        payment.payment_method = payment_method
         
-        # Simulate card payment processing (dummy but functional)
-        import random
-        import string
-        from django.utils import timezone
+        # Set provider payment details if available
+        if provider_payment_number:
+            payment.provider_payment_number = provider_payment_number
+            payment.provider_payment_method = payment_method
+        else:
+            # Log warning if provider hasn't set payment details
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Payment created for booking {booking.id} but provider {provider.id} hasn't set payment details in profile")
         
-        # Generate dummy transaction ID
-        payment.transaction_id = f"TXN{''.join(random.choices(string.ascii_uppercase + string.digits, k=12))}"
-        
-        # Extract card info from request (last 4 digits and brand)
-        card_number = self.request.data.get('card_number', '')
-        if card_number:
-            payment.card_last4 = card_number[-4:] if len(card_number) >= 4 else '0000'
-            # Determine card brand from first digit
-            first_digit = card_number[0] if card_number else '4'
-            if first_digit == '4':
-                payment.card_brand = 'Visa'
-            elif first_digit == '5':
-                payment.card_brand = 'Mastercard'
-            elif first_digit == '3':
-                payment.card_brand = 'American Express'
-            else:
-                payment.card_brand = 'Unknown'
-        
-        # Simulate payment processing (always succeeds in dummy mode)
-        payment.status = 'COMPLETED'
-        payment.completed_at = timezone.now()
         payment.save()
         
         return payment
 
 
-class PaymentDetailView(generics.RetrieveAPIView):
+class PaymentDetailView(generics.RetrieveUpdateAPIView):
     """
     GET: Retrieve payment details for a booking.
+    PATCH: Update payment (admin only for status changes).
     """
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -443,6 +447,264 @@ class PaymentDetailView(generics.RetrieveAPIView):
         elif user.role == 'PROVIDER':
             return Payment.objects.filter(booking__service__provider=user)
         return Payment.objects.none()
+    
+    def update(self, request, *args, **kwargs):
+        """Only allow admin to update payment status."""
+        instance = self.get_object()
+        user = request.user
+        
+        # Only admin can update payment status and admin fields
+        if 'status' in request.data or 'admin_verified' in request.data or 'admin_notes' in request.data:
+            if user.role != 'ADMIN' and not (user.is_staff or user.is_superuser):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only admins can update payment status and verification.")
+        
+        return super().update(request, *args, **kwargs)
+
+
+class ProviderPaymentDetailsView(APIView):
+    """
+    POST/PATCH: Provider sets payment number and method for a booking payment.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def post(self, request, payment_id):
+        """Set provider payment details."""
+        try:
+            payment = Payment.objects.get(id=payment_id)
+        except Payment.DoesNotExist:
+            return Response(
+                {'error': 'Payment not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Only the provider who owns the service can set payment details
+        if payment.booking.service.provider != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the service provider can set payment details.")
+        
+        # Allow setting details if provider_payment_number is not set yet
+        # This allows provider to set payment details for any payment that doesn't have provider details yet
+        if payment.provider_payment_number:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Payment details have already been set. Contact admin to update.")
+        
+        # Get payment details from request
+        provider_payment_number = request.data.get('provider_payment_number')
+        payment_method = request.data.get('payment_method', 'M_PESA')
+        
+        if not provider_payment_number:
+            return Response(
+                {'error': 'provider_payment_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update payment with provider details
+        payment.provider_payment_number = provider_payment_number
+        payment.payment_method = payment_method
+        payment.save()
+        
+        serializer = PaymentSerializer(payment, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def patch(self, request, payment_id):
+        """Update provider payment details."""
+        return self.post(request, payment_id)
+
+
+class SeekerUploadScreenshotView(APIView):
+    """
+    POST: Seeker uploads M-Pesa payment screenshot.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsSeeker]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def post(self, request, payment_id):
+        """Upload payment screenshot."""
+        try:
+            payment = Payment.objects.get(id=payment_id)
+        except Payment.DoesNotExist:
+            return Response(
+                {'error': 'Payment not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Only the seeker who made the booking can upload screenshot
+        if payment.booking.seeker != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only upload screenshots for your own payments.")
+        
+        # Check if payment has provider details
+        if not payment.provider_payment_number:
+            return Response(
+                {'error': 'Provider payment details not set yet. Please wait for provider to set payment information.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if screenshot is provided
+        if 'payment_screenshot' not in request.FILES:
+            return Response(
+                {'error': 'payment_screenshot file is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Upload screenshot
+        payment.payment_screenshot = request.FILES['payment_screenshot']
+        payment.status = 'PENDING_VERIFICATION'
+        payment.save()
+        
+        serializer = PaymentSerializer(payment, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminVerifyPaymentView(APIView):
+    """
+    POST: Admin verifies payment and marks as completed.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def post(self, request, payment_id):
+        """Verify payment and mark as completed."""
+        try:
+            payment = Payment.objects.get(id=payment_id)
+        except Payment.DoesNotExist:
+            return Response(
+                {'error': 'Payment not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Only allow verification of payments with screenshots
+        if not payment.payment_screenshot:
+            return Response(
+                {'error': 'Payment screenshot is required for verification'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Only allow verification of pending verification payments
+        if payment.status != 'PENDING_VERIFICATION':
+            return Response(
+                {'error': f'Payment is not pending verification. Current status: {payment.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get verification action and notes
+        action = request.data.get('action', 'approve')  # 'approve' or 'reject'
+        admin_notes = request.data.get('admin_notes', '')
+        
+        if action == 'approve':
+            # Mark as verified and completed
+            payment.admin_verified = True
+            payment.status = 'COMPLETED'
+            payment.completed_at = timezone.now()
+            if admin_notes:
+                payment.admin_notes = admin_notes
+            payment.save()
+            
+            return Response({
+                'message': 'Payment verified and marked as completed',
+                'payment': PaymentSerializer(payment, context={'request': request}).data
+            }, status=status.HTTP_200_OK)
+        elif action == 'reject':
+            # Reject payment - set back to pending
+            payment.admin_verified = False
+            payment.status = 'PENDING'
+            if admin_notes:
+                payment.admin_notes = admin_notes
+            payment.save()
+            
+            return Response({
+                'message': 'Payment rejected. Seeker can upload a new screenshot.',
+                'payment': PaymentSerializer(payment, context={'request': request}).data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': 'Invalid action. Use "approve" or "reject"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class PendingVerificationListView(generics.ListAPIView):
+    """
+    GET: List all payments pending admin verification.
+    Admin only.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        """Return payments pending verification."""
+        return Payment.objects.filter(status='PENDING_VERIFICATION').order_by('-created_at')
+
+
+class ProviderPaymentListView(generics.ListAPIView):
+    """
+    GET: List all payments for services provided by the authenticated provider.
+    Provider only.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        """Return payments for provider's services."""
+        if self.request.user.role != 'PROVIDER':
+            return Payment.objects.none()
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status', None)
+        queryset = Payment.objects.filter(booking__service__provider=self.request.user)
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset.select_related('booking', 'booking__service', 'booking__seeker').order_by('-created_at')
+
+
+class SeekerPaymentListView(generics.ListAPIView):
+    """
+    GET: List all payments for bookings made by the authenticated seeker.
+    Seeker only.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        """Return payments for seeker's bookings."""
+        if self.request.user.role != 'SEEKER':
+            return Payment.objects.none()
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status', None)
+        queryset = Payment.objects.filter(booking__seeker=self.request.user)
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset.select_related('booking', 'booking__service', 'booking__service__provider').order_by('-created_at')
+
+
+class AdminPaymentListView(generics.ListAPIView):
+    """
+    GET: List all payments in the system.
+    Admin only.
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+    authentication_classes = [FirebaseAuthentication, SessionAuthentication]
+    
+    def get_queryset(self):
+        """Return all payments, optionally filtered by status."""
+        status_filter = self.request.query_params.get('status', None)
+        queryset = Payment.objects.all()
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset.select_related('booking', 'booking__service', 'booking__service__provider', 'booking__seeker').order_by('-created_at')
 
 
 class ProviderAnalyticsView(APIView):

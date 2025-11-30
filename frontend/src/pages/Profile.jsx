@@ -26,6 +26,8 @@ export default function Profile() {
     address: dbUser?.address || '',
     show_contact_info: dbUser?.show_contact_info || false,
     profile_image: null,
+    provider_payment_number: dbUser?.provider_payment_number || '',
+    provider_payment_method: dbUser?.provider_payment_method || 'MOBILE_MONEY',
   });
   const [imagePreview, setImagePreview] = useState(dbUser?.profile_image || null);
 
@@ -40,6 +42,8 @@ export default function Profile() {
         address: dbUser.address || '',
         show_contact_info: dbUser.show_contact_info || false,
         profile_image: null,
+        provider_payment_number: dbUser.provider_payment_number || '',
+        provider_payment_method: dbUser.provider_payment_method || 'MOBILE_MONEY',
       });
       setImagePreview(dbUser.profile_image || null);
     }
@@ -94,17 +98,34 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true);
     try {
-      const updatedUser = await userService.updateProfile({
+      const updateData = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone_number: formData.phone_number,
         address: formData.address,
         show_contact_info: formData.show_contact_info,
         profile_image: formData.profile_image,
-      });
+      };
+      
+      // Add provider payment fields if user is a provider
+      if (dbUser?.role === 'PROVIDER') {
+        updateData.provider_payment_number = formData.provider_payment_number;
+        updateData.provider_payment_method = formData.provider_payment_method;
+      }
+      
+      const updatedUser = await userService.updateProfile(updateData);
       
       // Update the auth context with new user data
       setDbUser(updatedUser);
+      
+      // Also refresh from backend to ensure we have the latest data
+      try {
+        const refreshedUser = await userService.getProfile();
+        setDbUser(refreshedUser);
+      } catch (err) {
+        console.error('Error refreshing user data:', err);
+      }
+      
       showToast('Profile updated successfully!', 'success');
       setIsEditing(false);
     } catch (error) {
@@ -143,7 +164,7 @@ export default function Profile() {
               {dbUser?.first_name?.[0]?.toUpperCase() || 'U'}
             </div>
             {isEditing && (
-              <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 cursor-pointer shadow-lg transition">
+              <label className="absolute bottom-0 right-0 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-full p-2 cursor-pointer shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 transition-all duration-300 active:scale-95">
                 <input
                   type="file"
                   name="profile_image"
@@ -276,6 +297,46 @@ export default function Profile() {
               </>
             )}
             
+            {dbUser?.role === 'PROVIDER' && (
+              <>
+                <div className="border-t border-gray-700 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Payment Information</h3>
+                  <p className="text-gray-400 text-sm mb-4">Set your default payment details. This will be used for all your services unless you specify otherwise when creating a service.</p>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Payment Method
+                    </label>
+                    <select
+                      name="provider_payment_method"
+                      value={formData.provider_payment_method}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="MOBILE_MONEY">Mobile Money (M-Pesa)</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CARD">Card</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Payment Number / Account
+                    </label>
+                    <input
+                      type="text"
+                      name="provider_payment_number"
+                      value={formData.provider_payment_number}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                      placeholder="e.g., 0712345678 (M-Pesa) or Account Number (Bank)"
+                    />
+                    <p className="text-gray-400 text-sm mt-1">This is where seekers will send payments for your services</p>
+                  </div>
+                </div>
+              </>
+            )}
+            
             <div className="flex flex-col sm:flex-row gap-4">
               <LoadingButton
                 type="submit"
@@ -363,6 +424,40 @@ export default function Profile() {
                 </div>
               </>
             )}
+            
+            {dbUser?.role === 'PROVIDER' && (
+              <>
+                <div className="border-t border-gray-700 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Payment Information</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Payment Method
+                    </label>
+                    <p className="text-white text-lg">
+                      {dbUser?.provider_payment_method === 'MOBILE_MONEY' ? 'Mobile Money (M-Pesa)' :
+                       dbUser?.provider_payment_method === 'BANK_TRANSFER' ? 'Bank Transfer' :
+                       dbUser?.provider_payment_method === 'CARD' ? 'Card' :
+                       'Not set'}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Payment Number / Account
+                    </label>
+                    <p className="text-white text-lg font-mono">
+                      {dbUser?.provider_payment_number || 'Not set'}
+                    </p>
+                    {!dbUser?.provider_payment_number && (
+                      <p className="text-yellow-400 text-sm mt-1">
+                        ⚠️ Please set your payment details to receive payments from seekers.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -392,7 +487,7 @@ export default function Profile() {
             <CalendarIcon className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <p className="text-gray-300 mb-2 font-semibold text-lg">No bookings yet</p>
             <p className="text-gray-400 text-sm">Your booking history will appear here once you make a booking.</p>
-            <Link to="/" className="inline-block mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <Link to="/" className="inline-block mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 transition-all duration-300 active:scale-95">
               Browse Services
             </Link>
           </div>

@@ -5,7 +5,8 @@ import {
   ChartBarIcon,
   UserIcon,
   Cog6ToothIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -94,6 +95,7 @@ export default function DashboardLayout() {
   // Navigation items based on role
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', Icon: ChartBarIcon },
+    { path: '/dashboard/payments', label: 'Payments', Icon: CreditCardIcon },
     { path: '/dashboard/profile', label: 'Profile', Icon: UserIcon },
     { path: '/dashboard/settings', label: 'Settings', Icon: Cog6ToothIcon },
   ];
@@ -193,7 +195,7 @@ export default function DashboardLayout() {
             </div>
 
             {/* Navigation */}
-            <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'} hide-scrollbar`}>
+            <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'}`}>
               <ul className="space-y-1.5">
                 {navItems.map((item) => (
                   <li key={item.path}>
@@ -315,6 +317,7 @@ export default function DashboardLayout() {
             <h1 className="text-lg sm:text-xl font-bold text-white truncate">
               {isActive('/dashboard/profile') && 'Profile'}
               {isActive('/dashboard/settings') && 'Settings'}
+              {isActive('/dashboard/payments') && 'Payments'}
               {location.pathname === '/dashboard' && 'Dashboard'}
             </h1>
           </div>
@@ -393,7 +396,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6 hide-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 sm:p-6">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>

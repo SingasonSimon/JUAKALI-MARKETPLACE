@@ -47,6 +47,22 @@ export function StatsCardSkeleton() {
   );
 }
 
+export function PaymentCardSkeleton() {
+  return (
+    <div className="p-6 bg-gray-800 shadow-md border border-gray-700 rounded-lg animate-pulse">
+      <div className="flex justify-between items-start mb-4">
+        <div className="h-6 bg-gray-700 rounded w-3/4"></div>
+        <div className="h-6 bg-gray-700 rounded w-24"></div>
+      </div>
+      <div className="space-y-2 mb-4">
+        <div className="h-4 bg-gray-700 rounded w-full"></div>
+        <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+        <div className="h-4 bg-gray-700 rounded w-4/6"></div>
+      </div>
+    </div>
+  );
+}
+
 export function FormSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">

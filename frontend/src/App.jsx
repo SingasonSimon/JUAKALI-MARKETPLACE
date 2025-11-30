@@ -13,6 +13,9 @@ import DjangoAdminPage from './pages/DjangoAdminPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProfile from './pages/AdminProfile';
 import AdminSettings from './pages/AdminSettings';
+import ProviderPaymentsPage from './pages/ProviderPaymentsPage';
+import SeekerPaymentsPage from './pages/SeekerPaymentsPage';
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -85,6 +88,7 @@ export default function App() {
               <Route index element={<DashboardRedirect />} />
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="payments" element={<DashboardRedirect />} />
             </Route>
           </Route>
         </Routes>

@@ -21,6 +21,18 @@ class Service(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = CloudinaryField('image', folder='juakali/services', blank=True, null=True, help_text="Service image")
+    # Payment method for this service (optional, defaults to provider's default)
+    payment_method = models.CharField(
+        max_length=50,
+        choices=[
+            ('MOBILE_MONEY', 'Mobile Money (M-Pesa)'),
+            ('BANK_TRANSFER', 'Bank Transfer'),
+            ('CARD', 'Card'),
+        ],
+        blank=True,
+        null=True,
+        help_text="Payment method for this service (uses provider's default if not set)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -80,11 +92,13 @@ class Booking(models.Model):
 class Payment(models.Model):
     class PaymentStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
+        PENDING_VERIFICATION = "PENDING_VERIFICATION", "Pending Verification"
         COMPLETED = "COMPLETED", "Completed"
         FAILED = "FAILED", "Failed"
         REFUNDED = "REFUNDED", "Refunded"
     
     class PaymentMethod(models.TextChoices):
+        M_PESA = "M_PESA", "M-Pesa"
         CARD = "CARD", "Card"
         MOBILE_MONEY = "MOBILE_MONEY", "Mobile Money"
         BANK_TRANSFER = "BANK_TRANSFER", "Bank Transfer"
@@ -98,17 +112,42 @@ class Payment(models.Model):
     payment_method = models.CharField(
         max_length=50,
         choices=PaymentMethod.choices,
-        default=PaymentMethod.CARD
+        default=PaymentMethod.M_PESA
     )
     status = models.CharField(
         max_length=50,
         choices=PaymentStatus.choices,
         default=PaymentStatus.PENDING
     )
-    # Card payment details (dummy but functional)
+    # Provider payment details (for M-Pesa manual payments)
+    provider_payment_number = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True, 
+        help_text="M-Pesa number provided by the service provider"
+    )
+    # Card payment details (legacy, for backward compatibility)
     card_last4 = models.CharField(max_length=4, blank=True, null=True)
     card_brand = models.CharField(max_length=50, blank=True, null=True)  # e.g., "Visa", "Mastercard"
-    transaction_id = models.CharField(max_length=255, blank=True, null=True)  # Dummy transaction ID
+    transaction_id = models.CharField(max_length=255, blank=True, null=True)  # Transaction ID or reference
+    # Seeker payment proof
+    payment_screenshot = CloudinaryField(
+        'image', 
+        folder='juakali/payments', 
+        blank=True, 
+        null=True, 
+        help_text="Screenshot of M-Pesa payment confirmation uploaded by seeker"
+    )
+    # Admin verification
+    admin_verified = models.BooleanField(
+        default=False, 
+        help_text="Whether admin has verified the payment"
+    )
+    admin_notes = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="Optional notes from admin regarding payment verification"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     

@@ -153,8 +153,8 @@ function ServiceCard({ service, onBook }) {
   // Helper function to get image URL
   const getImageUrl = (image) => {
     if (!image) return null;
-    if (image.startsWith('http')) return image;
-    return `http://localhost:8000${image}`;
+    // Backend should return full URLs (Cloudinary), so use as-is
+    return image;
   };
 
   return (
@@ -226,8 +226,8 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
   // Helper function to get image URL
   const getImageUrl = (image) => {
     if (!image) return null;
-    if (image.startsWith('http')) return image;
-    return `http://localhost:8000${image}`;
+    // Backend should return full URLs (Cloudinary), so use as-is
+    return image;
   };
 
   return (
@@ -289,16 +289,64 @@ function MyBookingCard({ booking, onCancel, onViewDetails, isCanceling = false, 
 
       <div className="flex gap-2 flex-col mt-auto">
         {booking.status === 'CONFIRMED' && !booking.is_paid && (
-          <LoadingButton
-            onClick={() => onPayNow && onPayNow(booking)}
-            className="w-full py-2.5 px-4 text-sm font-semibold bg-green-600 hover:bg-green-700"
-          >
-            Pay Now
-          </LoadingButton>
+          <>
+            {/* Check payment status to show appropriate button/status */}
+            {(() => {
+              const payment = booking.payment;
+              const paymentStatus = payment?.status;
+              const hasProviderNumber = payment?.provider_payment_number;
+              const hasScreenshot = payment?.payment_screenshot;
+              
+              // Payment under admin verification (screenshot uploaded)
+              if (paymentStatus === 'PENDING_VERIFICATION' || (hasScreenshot && paymentStatus === 'PENDING')) {
+                return (
+                  <div className="text-sm text-yellow-400 font-semibold mb-2 text-center py-2.5 bg-yellow-900/20 rounded-lg border border-yellow-700 flex items-center justify-center gap-2">
+                    <ClockIcon className="w-5 h-5" />
+                    Payment Under Review
+                  </div>
+                );
+              }
+              
+              // Payment exists but waiting for provider to set payment details
+              if (payment && !hasProviderNumber) {
+                return (
+                  <div className="text-sm text-blue-400 font-semibold mb-2 text-center py-2.5 bg-blue-900/20 rounded-lg border border-blue-700 flex items-center justify-center gap-2">
+                    <ClockIcon className="w-5 h-5" />
+                    Waiting for Payment Details
+                  </div>
+                );
+              }
+              
+              // Payment exists with provider number, ready to pay
+              if (payment && hasProviderNumber && !hasScreenshot) {
+                return (
+                  <LoadingButton
+                    onClick={() => onPayNow && onPayNow(booking)}
+                    variant="success"
+                    size="lg"
+                    className="w-full"
+                  >
+                    Pay Now
+                  </LoadingButton>
+                );
+              }
+              
+              // No payment exists yet
+              return (
+                <LoadingButton
+                  onClick={() => onPayNow && onPayNow(booking)}
+                  className="w-full py-2.5 px-4 text-sm font-semibold bg-green-600 hover:bg-green-700"
+                >
+                  Pay Now
+                </LoadingButton>
+              );
+            })()}
+          </>
         )}
         {booking.status === 'CONFIRMED' && booking.is_paid && (
-          <div className="text-sm text-green-400 font-semibold mb-2 text-center py-2 bg-green-900/20 rounded-lg border border-green-700">
-            ✓ Payment Completed
+          <div className="text-sm text-green-400 font-semibold mb-2 text-center py-2.5 bg-green-900/20 rounded-lg border border-green-700 flex items-center justify-center gap-2">
+            <CheckCircleIcon className="w-5 h-5" />
+            Payment Completed
           </div>
         )}
         <div className="flex gap-2">

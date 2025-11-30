@@ -46,13 +46,14 @@ class ServiceSerializer(serializers.ModelSerializer):
             'provider_details',
             'category',
             'category_details',
+            'payment_method',
             'average_rating',
             'review_count',
             'created_at',
         ]
     
     def get_image(self, obj):
-        """Return full image URL if image exists, otherwise return None."""
+        """Return full Cloudinary HTTPS URL if image exists, otherwise return None."""
         if not obj.image:
             return None
             
@@ -60,8 +61,16 @@ class ServiceSerializer(serializers.ModelSerializer):
             import os
             from django.conf import settings
             
+            # Check if Cloudinary is configured
+            cloudinary_configured = (
+                hasattr(settings, 'CLOUDINARY_CLOUD_NAME') and 
+                settings.CLOUDINARY_CLOUD_NAME and
+                hasattr(settings, 'CLOUDINARY_API_KEY') and 
+                settings.CLOUDINARY_API_KEY
+            )
+            
             # Check if this is a CloudinaryField
-            if hasattr(obj.image, 'url'):
+            if hasattr(obj.image, 'url') and cloudinary_configured:
                 try:
                     # Check if public_id exists and is valid (CloudinaryField requirement)
                     public_id = None
@@ -72,29 +81,83 @@ class ServiceSerializer(serializers.ModelSerializer):
                     if not public_id or not str(public_id).strip():
                         return None
                     
+                    # Get Cloudinary URL - this should return a full HTTPS URL
                     cloudinary_url = obj.image.url
                     
                     # Validate Cloudinary URL format
                     if cloudinary_url and isinstance(cloudinary_url, str) and cloudinary_url.strip():
-                        # Check if it's a valid HTTP/HTTPS URL
-                        if cloudinary_url.startswith('http://') or cloudinary_url.startswith('https://'):
-                            # Return the Cloudinary URL
+                        # Check if it's already a full HTTPS URL (preferred)
+                        if cloudinary_url.startswith('https://'):
                             return cloudinary_url
-                        # If it's a relative URL, try to construct absolute URL
+                        # If it's HTTP, convert to HTTPS
+                        elif cloudinary_url.startswith('http://'):
+                            return cloudinary_url.replace('http://', 'https://', 1)
+                        # If it's a relative URL, construct full Cloudinary URL
                         elif cloudinary_url.startswith('/'):
-                            request = self.context.get('request')
-                            if request:
-                                return request.build_absolute_uri(cloudinary_url)
-                            return cloudinary_url
+                            # Build full Cloudinary URL
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload{cloudinary_url}"
+                        # If it's just a public_id or path, construct full URL
+                        else:
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            folder = 'juakali/services'
+                            if hasattr(obj.image, 'field') and hasattr(obj.image.field, 'folder'):
+                                folder = obj.image.field.folder
+                            
+                            # Check if public_id already includes the folder path
+                            public_id_str = str(public_id)
+                            if folder and not public_id_str.startswith(folder):
+                                # Folder not in public_id, add it
+                                public_id_with_folder = f"{folder}/{public_id_str}"
+                            else:
+                                # Folder already in public_id or no folder needed
+                                public_id_with_folder = public_id_str
+                            
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{public_id_with_folder}"
                     
-                    # If URL generation failed or returned invalid format, try local fallback
-                    # (fall through to local file check below)
+                    # If URL generation failed, try to construct manually
+                    if public_id:
+                        cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                        folder = 'juakali/services'
+                        if hasattr(obj.image, 'field') and hasattr(obj.image.field, 'folder'):
+                            folder = obj.image.field.folder
+                        
+                        # Check if public_id already includes the folder path
+                        public_id_str = str(public_id)
+                        if folder and not public_id_str.startswith(folder):
+                            public_id_with_folder = f"{folder}/{public_id_str}"
+                        else:
+                            public_id_with_folder = public_id_str
+                        
+                        return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{public_id_with_folder}"
+                    
                 except (AttributeError, Exception) as e:
-                    # Cloudinary URL generation failed, try local fallback
+                    # Cloudinary URL generation failed, try manual construction
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.debug(f"Cloudinary URL generation failed for service {obj.id}: {str(e)}")
-                    # Fall through to local file check
+                    
+                    # Try manual URL construction as fallback
+                    if cloudinary_configured and hasattr(obj.image, 'public_id'):
+                        public_id = obj.image.public_id
+                        if public_id:
+                            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+                            folder = 'juakali/services'
+                            
+                            # Check if public_id already includes the folder path
+                            public_id_str = str(public_id)
+                            if folder and not public_id_str.startswith(folder):
+                                public_id_with_folder = f"{folder}/{public_id_str}"
+                            else:
+                                public_id_with_folder = public_id_str
+                            
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{public_id_with_folder}"
+                    
+                    # Fall through to local file check only if Cloudinary is not configured
+                    if not cloudinary_configured:
+                        pass  # Fall through to local check
+                    else:
+                        return None  # Cloudinary is configured but URL generation failed
             
             # Check if file exists locally (for images uploaded before Cloudinary was configured)
             image_name = str(obj.image)
@@ -194,15 +257,22 @@ class ServiceSerializer(serializers.ModelSerializer):
     
 class PaymentSerializer(serializers.ModelSerializer):
     card_number = serializers.CharField(write_only=True, required=False, help_text="Card number (last 4 digits will be stored)")
+    payment_screenshot = serializers.SerializerMethodField()
+    booking_details = serializers.SerializerMethodField()
     
     class Meta:
         model = Payment
         fields = [
             'id',
             'booking',
+            'booking_details',
             'amount',
             'payment_method',
             'status',
+            'provider_payment_number',
+            'payment_screenshot',
+            'admin_verified',
+            'admin_notes',
             'card_number',
             'card_last4',
             'card_brand',
@@ -210,7 +280,62 @@ class PaymentSerializer(serializers.ModelSerializer):
             'created_at',
             'completed_at',
         ]
-        read_only_fields = ['id', 'created_at', 'completed_at', 'transaction_id', 'card_last4', 'card_brand', 'status']
+        read_only_fields = [
+            'id', 
+            'created_at', 
+            'completed_at', 
+            'transaction_id', 
+            'card_last4', 
+            'card_brand', 
+            'status',
+            'admin_verified',
+            'admin_notes',
+            'booking_details'
+        ]
+    
+    def get_payment_screenshot(self, obj):
+        """Return full screenshot URL if screenshot exists."""
+        if obj.payment_screenshot:
+            try:
+                if hasattr(obj.payment_screenshot, 'url'):
+                    cloudinary_url = obj.payment_screenshot.url
+                    if cloudinary_url and isinstance(cloudinary_url, str) and cloudinary_url.strip():
+                        if cloudinary_url.startswith('http://') or cloudinary_url.startswith('https://'):
+                            return cloudinary_url
+                
+                # Fallback: return string representation
+                image_path = str(obj.payment_screenshot)
+                if image_path.startswith('http://') or image_path.startswith('https://'):
+                    return image_path
+                
+                # Build absolute URL for local storage
+                request = self.context.get('request')
+                if request:
+                    from django.conf import settings
+                    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                    if not image_path.startswith('/'):
+                        image_path = '/' + image_path
+                    return request.build_absolute_uri(media_url.rstrip('/') + image_path)
+                
+                return image_path
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error getting payment screenshot URL for payment {obj.id}: {str(e)}")
+                return None
+        return None
+    
+    def get_booking_details(self, obj):
+        """Return booking details."""
+        if obj.booking:
+            return {
+                'id': obj.booking.id,
+                'service_title': obj.booking.service.title,
+                'booking_date': obj.booking.booking_date,
+                'seeker_email': obj.booking.seeker.email,
+                'provider_email': obj.booking.service.provider.email,
+            }
+        return None
     
     def validate(self, data):
         """Validate payment data."""
@@ -224,15 +349,30 @@ class PaymentSerializer(serializers.ModelSerializer):
         
         return data
     
+    def to_internal_value(self, data):
+        """Handle payment_screenshot field in request data."""
+        ret = super().to_internal_value(data)
+        request = self.context.get('request')
+        if request and hasattr(request, 'FILES') and 'payment_screenshot' in request.FILES:
+            ret['_payment_screenshot_file'] = request.FILES['payment_screenshot']
+        return ret
+    
     def create(self, validated_data):
         """Create payment and extract card details from card_number if provided."""
         # Remove card_number from validated_data as it's not a model field
         card_number = validated_data.pop('card_number', None)
+        payment_screenshot_file = validated_data.pop('_payment_screenshot_file', None)
         
         # Create the payment instance
         payment = super().create(validated_data)
         
-        # Process card_number if provided (this will be handled in the view, but we can set defaults here)
+        # Handle screenshot upload
+        if payment_screenshot_file:
+            payment.payment_screenshot = payment_screenshot_file
+            payment.status = 'PENDING_VERIFICATION'
+            payment.save()
+        
+        # Process card_number if provided (legacy support)
         if card_number:
             # Extract last 4 digits
             payment.card_last4 = card_number[-4:] if len(card_number) >= 4 else '0000'
@@ -246,6 +386,22 @@ class PaymentSerializer(serializers.ModelSerializer):
                 payment.card_brand = 'American Express'
             else:
                 payment.card_brand = 'Unknown'
+            payment.save()
+        
+        return payment
+    
+    def update(self, instance, validated_data):
+        """Update payment instance."""
+        payment_screenshot_file = validated_data.pop('_payment_screenshot_file', None)
+        
+        # Update payment
+        payment = super().update(instance, validated_data)
+        
+        # Handle screenshot upload on update
+        if payment_screenshot_file is not None:
+            payment.payment_screenshot = payment_screenshot_file
+            if payment.status == 'PENDING':
+                payment.status = 'PENDING_VERIFICATION'
             payment.save()
         
         return payment

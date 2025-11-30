@@ -20,6 +20,7 @@ import { serviceService } from '../services/serviceService';
 import { categoryService } from '../services/categoryService';
 import { bookingService } from '../services/bookingService';
 import { reviewService } from '../services/reviewService';
+import { paymentService } from '../services/paymentService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import LoadingButton from '../components/LoadingButton';
@@ -35,13 +36,14 @@ import {
 } from '../components/Charts';
 
 // Create Service Form Component
-function CreateServiceForm({ categories, onServiceCreated, onClose }) {
+function CreateServiceForm({ categories, onServiceCreated, onClose, providerPaymentMethod }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     price: '',
     category: '',
     image: null,
+    payment_method: '', // Empty means use provider's default
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [error, setError] = useState(null);
@@ -72,7 +74,7 @@ function CreateServiceForm({ categories, onServiceCreated, onClose }) {
     try {
       const newService = await serviceService.createService(formData);
       onServiceCreated(newService);
-      setFormData({ title: '', description: '', price: '', category: '', image: null });
+      setFormData({ title: '', description: '', price: '', category: '', image: null, payment_method: '' });
       setImagePreview(null);
       if (onClose) onClose();
     } catch (err) {
@@ -144,6 +146,22 @@ function CreateServiceForm({ categories, onServiceCreated, onClose }) {
       </div>
       
       <div>
+        <label htmlFor="payment_method" className={labelStyle}>Payment Method (Optional)</label>
+        <select 
+          name="payment_method" 
+          value={formData.payment_method} 
+          onChange={handleChange} 
+          className={inputStyle}
+        >
+          <option value="">Use my default ({providerPaymentMethod === 'MOBILE_MONEY' ? 'Mobile Money' : providerPaymentMethod === 'BANK_TRANSFER' ? 'Bank Transfer' : 'Card'})</option>
+          <option value="MOBILE_MONEY">Mobile Money (M-Pesa)</option>
+          <option value="BANK_TRANSFER">Bank Transfer</option>
+          <option value="CARD">Card</option>
+        </select>
+        <p className="text-gray-400 text-sm mt-1">Leave empty to use your default payment method from profile</p>
+      </div>
+      
+      <div>
         <label htmlFor="image" className={labelStyle}>Service Image (Optional)</label>
         <input 
           type="file" 
@@ -211,7 +229,7 @@ function EditServiceModal({ service, categories, isOpen, onClose, onUpdated }) {
         // If it's already a full URL, use it; otherwise construct it
         const imageUrl = service.image.startsWith('http') 
           ? service.image 
-          : `http://localhost:8000${service.image}`;
+          : service.image;
         setImagePreview(imageUrl);
       } else {
         setImagePreview(null);
@@ -382,7 +400,7 @@ function ServiceCard({ service, onEdit, onDelete, isDeleting = false, isEditing 
       {service.image && (
         <div className="mb-3 rounded-lg overflow-hidden">
           <img 
-            src={service.image.startsWith('http') ? service.image : `http://localhost:8000${service.image}`}
+            src={service.image}
             alt={service.title}
             className="w-full h-40 object-cover"
             onError={(e) => {
@@ -430,8 +448,74 @@ function ServiceCard({ service, onEdit, onDelete, isDeleting = false, isEditing 
   );
 }
 
+// Payment Details Form Component
+function PaymentDetailsForm({ booking, payment, onRefresh }) {
+  const { showToast } = useToast();
+  const [paymentNumber, setPaymentNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!paymentNumber.trim()) {
+      showToast('Please enter your M-Pesa number', 'error');
+      return;
+    }
+    // Validate M-Pesa number format (Kenyan phone number)
+    const phoneRegex = /^(?:\+254|0)[17]\d{8}$/;
+    const cleanedNumber = paymentNumber.replace(/\s/g, '');
+    if (!phoneRegex.test(cleanedNumber)) {
+      showToast('Please enter a valid M-Pesa number (e.g., 0712345678 or +254712345678)', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await paymentService.setProviderPaymentDetails(payment.id, {
+        provider_payment_number: cleanedNumber,
+        payment_method: 'M_PESA'
+      });
+      showToast('Payment details set successfully!', 'success');
+      // Refresh bookings data instead of updating status
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to set payment details.';
+      showToast(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <p className="text-blue-300 text-sm font-semibold mb-2">Set Payment Details</p>
+      <div className="flex gap-2 items-start">
+        <div className="flex-1 min-w-0">
+          <input
+            type="tel"
+            value={paymentNumber}
+            onChange={(e) => setPaymentNumber(e.target.value)}
+            placeholder="0712345678"
+            className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500 text-sm"
+            required
+          />
+        </div>
+        <LoadingButton
+          type="submit"
+          loading={loading}
+          className="px-4 py-2 text-sm flex-shrink-0"
+        >
+          Set
+        </LoadingButton>
+      </div>
+      <p className="text-xs text-blue-200">Enter your M-Pesa number for the seeker to pay</p>
+    </form>
+  );
+}
+
 // Booking Card Component
-function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingBookingId }) {
+function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingBookingId, onRefresh }) {
   const bookingDate = new Date(booking.booking_date);
   const statusColors = {
     'PENDING_ADMIN_APPROVAL': 'bg-orange-900 text-orange-300',
@@ -494,9 +578,30 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
         </div>
       )}
 
-      {booking.status === 'CONFIRMED' && !booking.is_paid && (
-        <div className="p-3 mb-3 bg-yellow-900/30 border border-yellow-700 rounded-lg text-sm text-yellow-100">
-          Booking confirmed. Awaiting seeker payment.
+      {booking.status === 'CONFIRMED' && booking.payment && (
+        <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3 mb-3 space-y-2">
+          {booking.payment.provider_payment_number ? (
+            <div>
+              <p className="text-blue-300 text-sm font-semibold mb-1">Payment Details</p>
+              <p className="text-blue-200 text-sm">
+                {booking.payment.provider_payment_method === 'MOBILE_MONEY' ? 'M-Pesa' : 
+                 booking.payment.provider_payment_method === 'BANK_TRANSFER' ? 'Bank Account' : 'Card'}: 
+                {booking.payment.provider_payment_number}
+              </p>
+              {booking.payment.status === 'PENDING_VERIFICATION' && (
+                <p className="text-yellow-300 text-xs mt-1">Screenshot uploaded, awaiting admin verification</p>
+              )}
+              {booking.payment.status === 'COMPLETED' && (
+                <p className="text-green-300 text-xs mt-1">✓ Payment verified and completed</p>
+              )}
+            </div>
+          ) : (
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ Payment details not set. Please set your payment information in your <a href="/dashboard/profile" className="underline font-semibold">profile</a>.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -515,7 +620,18 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
         <LoadingButton
           onClick={() => onUpdateStatus(booking.id, 'COMPLETED')}
           loading={completingBookingId === booking.id}
+          disabled={
+            !booking.payment || 
+            booking.payment.status !== 'COMPLETED'
+          }
           className="w-full py-2 px-4 text-sm"
+          title={
+            !booking.payment
+              ? 'Payment must be completed before marking as completed'
+              : booking.payment.status !== 'COMPLETED'
+              ? 'Payment must be verified by admin before marking as completed'
+              : 'Mark this booking as completed'
+          }
         >
           Mark as Completed
         </LoadingButton>
@@ -944,7 +1060,7 @@ export default function ProviderDashboard() {
           </nav>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0">
           {/* Services Section */}
           {activeSection === 'services' && (
             <motion.div
@@ -974,6 +1090,7 @@ export default function ProviderDashboard() {
                       categories={categories}
                       onServiceCreated={handleServiceCreated}
                       onClose={() => setShowCreateModal(false)}
+                      providerPaymentMethod={dbUser?.provider_payment_method || 'MOBILE_MONEY'}
                     />
                   )}
                 </div>
@@ -989,7 +1106,7 @@ export default function ProviderDashboard() {
                 {myServices.length}
               </span>
             </h2>
-            <div className="space-y-4 flex-1 overflow-y-auto hide-scrollbar">
+            <div className="space-y-4 flex-1 overflow-y-auto">
               {myServices.length > 0 ? (
                 myServices.map((service, index) => (
                   <motion.div
@@ -1038,7 +1155,7 @@ export default function ProviderDashboard() {
                       We'll notify you once they're ready to confirm.
                     </div>
                   )}
-            <div className="space-y-4 flex-1 overflow-y-auto hide-scrollbar">
+            <div className="space-y-4 flex-1 overflow-y-auto">
               {sortedBookings.length > 0 ? (
                 sortedBookings.map((booking, index) => (
                   <motion.div
@@ -1052,6 +1169,14 @@ export default function ProviderDashboard() {
                       onUpdateStatus={handleUpdateBookingStatus}
                       confirmingBookingId={confirmingBookingId}
                       completingBookingId={completingBookingId}
+                      onRefresh={async () => {
+                        try {
+                          const bookingsData = await bookingService.getMyBookings();
+                          setMyBookings(bookingsData);
+                        } catch (err) {
+                          console.error('Failed to refresh bookings:', err);
+                        }
+                      }}
                     />
                   </motion.div>
                 ))
@@ -1136,7 +1261,7 @@ export default function ProviderDashboard() {
                           setEditingCategory(null);
                           setCategoryFormData({ name: '' });
                         }}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-semibold rounded-lg shadow-lg shadow-gray-500/30 hover:shadow-xl hover:shadow-gray-500/40 transition-all duration-300 active:scale-95"
                       >
                         Cancel
                       </button>
@@ -1146,7 +1271,7 @@ export default function ProviderDashboard() {
               )}
 
               {/* Categories Table */}
-              <div className="overflow-x-auto max-h-[calc(100vh-450px)] overflow-y-auto hide-scrollbar">
+              <div className="overflow-x-auto max-h-[calc(100vh-450px)] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700">
                     <tr>
@@ -1183,7 +1308,7 @@ export default function ProviderDashboard() {
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleEditCategory(category)}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition"
+                                  className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold rounded-lg shadow-md shadow-blue-500/50 hover:shadow-lg hover:shadow-blue-500/60 transition-all duration-300 active:scale-95"
                                   disabled={categoryLoading}
                                 >
                                   Edit
