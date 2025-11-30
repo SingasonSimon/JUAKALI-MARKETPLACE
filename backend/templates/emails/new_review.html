@@ -43,7 +43,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>⭐ New Review Received!</h1>
+        <h1>New Review Received</h1>
     </div>
     <div class="content">
         <p>Hello {{ provider.first_name }},</p>
@@ -54,7 +54,7 @@
             <h2>Review Details</h2>
             <p><strong>Service:</strong> {{ service.title }}</p>
             <p><strong>Customer:</strong> {{ seeker.first_name }} {{ seeker.last_name }}</p>
-            <p><strong>Rating:</strong> <span class="rating">{{ review.rating }}/5 ⭐</span></p>
+            <p><strong>Rating:</strong> <span class="rating">{{ review.rating }}/5</span></p>
             {% if review.comment %}
             <p><strong>Comment:</strong> {{ review.comment }}</p>
             {% endif %}

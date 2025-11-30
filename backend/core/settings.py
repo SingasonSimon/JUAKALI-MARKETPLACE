@@ -150,11 +150,11 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
         'API_SECRET': CLOUDINARY_API_SECRET,
     }
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    print("✅ Cloudinary storage configured.")
+    print("Cloudinary storage configured successfully.")
 else:
     # Fallback to local storage if Cloudinary is not configured
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-    print("⚠️  Cloudinary not configured. Using local file storage.")
+    print("Warning: Cloudinary not configured. Using local file storage.")
     print("   To enable Cloudinary, set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env")
 
 # Fallback for local development
@@ -180,12 +180,12 @@ if os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
         cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
         firebase_admin.initialize_app(cred)
         FIREBASE_INITIALIZED = True
-        print("✅ Firebase Admin SDK Initialized.")
+        print("Firebase Admin SDK initialized successfully.")
     except Exception as e:
-        print(f"⚠️  Warning: Failed to initialize Firebase: {str(e)}")
+        print(f"Warning: Failed to initialize Firebase: {str(e)}")
         print("   Firebase authentication will not be available.")
 else:
-    print("⚠️  Warning: Firebase service account key not found.")
+    print("Warning: Firebase service account key not found.")
     print(f"   Expected location: {SERVICE_ACCOUNT_KEY_PATH}")
     print("   Firebase authentication will not be available.")
     print("   To enable Firebase:")

@@ -451,7 +451,7 @@ export default function Profile() {
                     </p>
                     {!dbUser?.provider_payment_number && (
                       <p className="text-yellow-400 text-sm mt-1">
-                        ⚠️ Please set your payment details to receive payments from seekers.
+                        Please set your payment details to receive payments from seekers.
                       </p>
                     )}
                   </div>

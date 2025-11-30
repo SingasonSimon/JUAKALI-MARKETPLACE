@@ -592,13 +592,13 @@ function BookingCard({ booking, onUpdateStatus, confirmingBookingId, completingB
                 <p className="text-yellow-300 text-xs mt-1">Screenshot uploaded, awaiting admin verification</p>
               )}
               {booking.payment.status === 'COMPLETED' && (
-                <p className="text-green-300 text-xs mt-1">✓ Payment verified and completed</p>
+                <p className="text-green-300 text-xs mt-1">Payment verified and completed</p>
               )}
             </div>
           ) : (
             <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
               <p className="text-yellow-300 text-sm">
-                ⚠️ Payment details not set. Please set your payment information in your <a href="/dashboard/profile" className="underline font-semibold">profile</a>.
+                Payment details not set. Please set your payment information in your <a href="/dashboard/profile" className="underline font-semibold">profile</a>.
               </p>
             </div>
           )}

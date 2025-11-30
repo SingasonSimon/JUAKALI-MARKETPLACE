@@ -46,7 +46,7 @@ if (missingVars.length > 0 || hasPlaceholders) {
     document.body.innerHTML = `
       <div style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #1a1a1a; color: #fff; padding: 20px;">
         <div style="max-width: 600px; background: #2a2a2a; padding: 40px; border-radius: 12px; border: 1px solid #444;">
-          <h1 style="margin-top: 0; color: #fbbf24;">⚠️ Firebase Configuration Required</h1>
+          <h1 style="margin-top: 0; color: #fbbf24;">Firebase Configuration Required</h1>
           <p style="line-height: 1.6; color: #d1d5db;">
             The Firebase environment variables are missing or contain placeholder values.
             Please update the <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 4px;">.env</code> file in the frontend directory.
